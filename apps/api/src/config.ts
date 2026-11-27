@@ -10,8 +10,12 @@ const EnvSchema = z
     /** Reverse proxies in front of the API (Railway edge = 1; Vercel rewrite + Railway = 2). */
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(1),
     WEB_ORIGIN: z.url().default('http://localhost:3000'),
-    DATABASE_URL: z.string().min(1),
-    REDIS_URL: z.string().min(1),
+    APP_DATABASE_URL: z.string().min(1),
+    /** Optional until background jobs arrive (Phase 6/7). */
+    REDIS_URL: z
+      .string()
+      .optional()
+      .transform((v) => (v ? v : undefined)),
     JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
     ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),

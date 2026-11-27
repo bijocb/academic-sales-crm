@@ -8,10 +8,12 @@
     "dev": "prisma generate && tsc -p tsconfig.build.json && (tsc -p tsconfig.build.json --watch --preserveWatchOutput & node --env-file-if-exists=../../.env --watch --enable-source-maps dist/main.js)",
     "start": "node --env-file-if-exists=../../.env --enable-source-maps dist/main.js",
     "test": "jest --runInBand",
-    "db:migrate": "prisma migrate deploy && bash scripts/setup-db-role.sh",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx --env-file-if-exists=.env prisma/seed.ts",
-    "db:seed:demo": "tsx --env-file-if-exists=.env prisma/seed-demo.ts"
+    "db:seed:demo": "tsx --env-file-if-exists=.env prisma/seed-demo.ts",
+    "db:deploy": "tsx scripts/migrate.ts --seed",
+    "vercel-build": "prisma generate && tsc -p tsconfig.build.json && tsx scripts/migrate.ts --seed"
   },
   "dependencies": {
     "@crm/contracts": "workspace:*",

@@ -2,7 +2,7 @@
 #   docker build -f infra/docker/api.Dockerfile .
 FROM node:22.21-bookworm-slim
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl postgresql-client ca-certificates \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 WORKDIR /app

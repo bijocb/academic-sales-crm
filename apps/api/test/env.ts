@@ -6,7 +6,7 @@ const ownerAuth = process.env.TEST_DB_OWNER_AUTH ?? 'postgres';
 
 export const TEST_ENV = {
   NODE_ENV: 'test',
-  DATABASE_URL: `postgresql://crm_app:${appPw}@${host}/${TEST_DB}`,
+  APP_DATABASE_URL: `postgresql://crm_app:${appPw}@${host}/${TEST_DB}`,
   MIGRATION_DATABASE_URL: `postgresql://${ownerAuth}@${host}/${TEST_DB}`,
   CRM_APP_DB_PASSWORD: appPw,
   REDIS_URL: process.env.REDIS_URL ?? 'redis://localhost:6379',

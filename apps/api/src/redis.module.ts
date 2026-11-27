@@ -4,26 +4,28 @@ import { APP_CONFIG, AppConfig } from './config';
 
 export const REDIS = Symbol('REDIS');
 
+/** Redis client, or null when REDIS_URL is not configured (not required until Phase 6/7). */
 @Global()
 @Module({
   providers: [
     {
       provide: REDIS,
       inject: [APP_CONFIG],
-      useFactory: (config: AppConfig) =>
-        new Redis(config.REDIS_URL, {
-          lazyConnect: false,
-          maxRetriesPerRequest: 1,
-          enableOfflineQueue: false,
-          family: 0, // IPv4 or IPv6 (Railway private network is IPv6)
-        }),
+      useFactory: (config: AppConfig): Redis | null =>
+        config.REDIS_URL
+          ? new Redis(config.REDIS_URL, {
+              maxRetriesPerRequest: 1,
+              enableOfflineQueue: false,
+              family: 0, // IPv4 or IPv6 (private networks are often IPv6)
+            })
+          : null,
     },
   ],
   exports: [REDIS],
 })
 export class RedisModule implements OnModuleDestroy {
-  constructor(@Inject(REDIS) private readonly redis: Redis) {}
+  constructor(@Inject(REDIS) private readonly redis: Redis | null) {}
   async onModuleDestroy(): Promise<void> {
-    this.redis.disconnect();
+    this.redis?.disconnect();
   }
 }

@@ -4,6 +4,7 @@
  * deployment). All demo users share DEMO_PASSWORD (env), default below for local use only.
  */
 import { PrismaClient } from '@prisma/client';
+import { resolveDatabaseEnv } from '../src/db-env';
 import { hashPassword } from '../src/auth/crypto';
 import { seedSystemRoles } from '../src/platform/organizations.service';
 
@@ -15,7 +16,9 @@ async function main(): Promise<void> {
       'seed-demo is disabled in production (set ALLOW_DEMO_SEED=true only for a demo deployment)',
     );
   }
-  const prisma = new PrismaClient();
+  resolveDatabaseEnv();
+  // Owner connection: seeds write across tenants.
+  const prisma = new PrismaClient({ datasourceUrl: process.env.MIGRATION_DATABASE_URL });
   try {
     const passwordHash = await hashPassword(DEMO_PASSWORD);
     await prisma.$transaction(async (tx) => {

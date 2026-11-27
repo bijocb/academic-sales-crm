@@ -13,6 +13,7 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       '**/next-env.d.ts',
+      'apps/api/api/**',
     ],
   },
   js.configs.recommended,

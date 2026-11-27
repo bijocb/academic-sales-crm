@@ -3,6 +3,7 @@
  * Idempotent: does nothing if the user already exists. Safe for production use.
  */
 import { PrismaClient } from '@prisma/client';
+import { resolveDatabaseEnv } from '../src/db-env';
 import { hashPassword } from '../src/auth/crypto';
 
 async function main(): Promise<void> {
@@ -13,7 +14,9 @@ async function main(): Promise<void> {
   if (password.length < 10)
     throw new Error('SEED_PLATFORM_ADMIN_PASSWORD must be at least 10 characters');
 
-  const prisma = new PrismaClient();
+  resolveDatabaseEnv();
+  // Owner connection: seeds write across tenants.
+  const prisma = new PrismaClient({ datasourceUrl: process.env.MIGRATION_DATABASE_URL });
   try {
     const passwordHash = await hashPassword(password);
     const created = await prisma.$transaction(async (tx) => {

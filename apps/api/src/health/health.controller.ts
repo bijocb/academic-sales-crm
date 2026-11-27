@@ -11,7 +11,7 @@ import { REDIS } from '../redis.module';
 export class HealthController {
   constructor(
     private readonly db: Db,
-    @Inject(REDIS) private readonly redis: Redis,
+    @Inject(REDIS) private readonly redis: Redis | null,
   ) {}
 
   @Public()
@@ -22,12 +22,14 @@ export class HealthController {
         () => 'up' as const,
         () => 'down' as const,
       ),
-      this.redis.ping().then(
-        () => 'up' as const,
-        () => 'down' as const,
-      ),
+      this.redis
+        ? this.redis.ping().then(
+            () => 'up' as const,
+            () => 'down' as const,
+          )
+        : Promise.resolve('not_configured' as const),
     ]);
-    const ok = database === 'up' && redis === 'up';
+    const ok = database === 'up' && redis !== 'down';
     res.status(ok ? 200 : 503);
     return { status: ok ? 'ok' : 'degraded', database, redis };
   }

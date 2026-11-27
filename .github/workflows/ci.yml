@@ -28,7 +28,7 @@ jobs:
         ports: ['6379:6379']
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://crm_app:ci-app-password@localhost:5432/crm
+      APP_DATABASE_URL: postgresql://crm_app:ci-app-password@localhost:5432/crm
       MIGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/crm
       CRM_APP_DB_PASSWORD: ci-app-password
       TEST_DB_OWNER_AUTH: postgres:postgres

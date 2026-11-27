@@ -7,5 +7,5 @@ export default function globalSetup(): void {
   const cwd = path.resolve(__dirname, '..');
   const env = { ...process.env, ...TEST_ENV };
   execSync('npx prisma migrate deploy', { cwd, env, stdio: 'pipe' });
-  execSync('bash scripts/setup-db-role.sh', { cwd, env, stdio: 'pipe' });
+  execSync('npx tsx scripts/setup-db-role.ts', { cwd, env, stdio: 'pipe' });
 }
