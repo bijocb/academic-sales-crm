@@ -143,6 +143,9 @@ export const ImportRowsSchema = z.object({
 export const LeadListQuerySchema = z.object({
   brandId: uuid.optional(),
   status: z.enum(LEAD_STATUSES).optional(),
+  stage: z.string().trim().max(40).optional(),
+  ownerId: z.union([uuid, z.literal('none'), z.literal('me')]).optional(),
+  courseId: uuid.optional(),
   q: z.string().trim().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(50),

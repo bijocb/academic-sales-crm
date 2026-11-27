@@ -665,6 +665,7 @@ model Lead {
   firstEnquiryAt   DateTime   @map("first_enquiry_at") @db.Timestamptz(3)
   lastEnquiryAt    DateTime   @map("last_enquiry_at") @db.Timestamptz(3)
   enquiryCount     Int        @default(1) @map("enquiry_count")
+  stageChangedAt   DateTime?  @map("stage_changed_at") @db.Timestamptz(3)
   createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -1353,4 +1354,101 @@ model Appointment {
   @@index([organizationId, counsellorId, startsAt])
   @@index([organizationId, leadId, startsAt])
   @@map("appointments")
+}
+
+// ---------------------------------------------------------------- Phase 9
+
+enum InterestLevel {
+  HOT
+  WARM
+  COLD
+}
+
+enum QuotationStatus {
+  OPEN
+  ACCEPTED
+  REJECTED
+  SUPERSEDED
+  EXPIRED
+}
+
+/// Append-only: every pipeline stage change. UPDATE/DELETE blocked by trigger.
+model LeadStageHistory {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  brandId        String   @map("brand_id") @db.Uuid
+  leadId         String   @map("lead_id") @db.Uuid
+  fromStage      String   @map("from_stage")
+  toStage        String   @map("to_stage")
+  direction      String
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  reason         String?
+  snapshot       Json?
+  occurredAt     DateTime @map("occurred_at") @db.Timestamptz(3)
+
+  @@index([organizationId, leadId, occurredAt])
+  @@index([organizationId, brandId, toStage, occurredAt])
+  @@map("lead_stage_history")
+}
+
+/// Sales qualification (FR-011); every change is a lead event.
+model LeadQualification {
+  id                   String         @id @default(uuid()) @db.Uuid
+  organizationId       String         @map("organization_id") @db.Uuid
+  leadId               String         @unique @map("lead_id") @db.Uuid
+  highestQualification String?        @map("highest_qualification")
+  eligibilityNotes     String?        @map("eligibility_notes")
+  requirement          String?
+  interestLevel        InterestLevel? @map("interest_level")
+  preferredCourseIds   String[]       @default([]) @map("preferred_course_ids") @db.Uuid
+  intake               String?
+  feeReadiness         String?        @map("fee_readiness")
+  objections           String?
+  updatedById          String?        @map("updated_by_id") @db.Uuid
+  updatedAt            DateTime       @map("updated_at") @db.Timestamptz(3)
+
+  @@map("lead_qualifications")
+}
+
+/// Course + batch + fee offer. Amounts are never edited; a new quotation supersedes.
+model Quotation {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  brandId        String          @map("brand_id") @db.Uuid
+  leadId         String          @map("lead_id") @db.Uuid
+  number         String
+  courseId       String          @map("course_id") @db.Uuid
+  batchId        String?         @map("batch_id") @db.Uuid
+  currency       Currency
+  listFeeMinor   BigInt          @map("list_fee_minor")
+  discountMinor  BigInt          @default(0) @map("discount_minor")
+  totalMinor     BigInt          @map("total_minor")
+  discountReason String?         @map("discount_reason")
+  notes          String?
+  validUntil     DateTime        @map("valid_until") @db.Date
+  status         QuotationStatus @default(OPEN)
+  decisionReason String?         @map("decision_reason")
+  decidedAt      DateTime?       @map("decided_at") @db.Timestamptz(3)
+  decidedById    String?         @map("decided_by_id") @db.Uuid
+  createdById    String?         @map("created_by_id") @db.Uuid
+  createdAt      DateTime        @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([organizationId, number])
+  @@index([organizationId, leadId, createdAt])
+  @@map("quotations")
+}
+
+/// Per-user saved filters for the leads list and pipeline board.
+model SavedView {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  page           String
+  name           String
+  filters        Json
+  createdAt      DateTime @map("created_at") @db.Timestamptz(3)
+
+  @@unique([userId, page, name])
+  @@map("saved_views")
 }

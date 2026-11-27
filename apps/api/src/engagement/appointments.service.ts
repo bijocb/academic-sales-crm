@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import type { Appointment } from '@prisma/client';
 import {
   AppointmentListQuerySchema,
+  CounsellingRecordSchema,
   CancelAppointmentSchema,
   CompleteAppointmentSchema,
   CreateAppointmentSchema,
@@ -175,6 +176,70 @@ export class AppointmentsService implements OnModuleInit {
           now,
         });
       return a;
+    });
+  }
+
+  /** A session that already happened (walk-in or unscheduled), recorded directly. */
+  record(p: OrgPrincipal, leadId: string, input: z.infer<typeof CounsellingRecordSchema>) {
+    const now = this.clock.now();
+    return this.db.tenant(p.organizationId, async (tx) => {
+      const lead = await this.leads.visibleLead(tx, p, leadId);
+      if (!this.leads.canEdit(p, lead.brandId)) throw forbidden();
+      if (!WORKABLE.includes(lead.status))
+        throw badRequest('LEAD_NOT_ACTIVE', 'Counselling can only be recorded on active leads');
+      const startsAt = new Date(input.heldAt);
+      if (startsAt > now)
+        throw badRequest('SESSION_IN_FUTURE', 'Book future sessions as appointments');
+      const counsellor = await tx.user.findFirst({
+        where: {
+          id: input.counsellorId,
+          status: 'ACTIVE',
+          roleAssignments: {
+            some: {
+              revokedAt: null,
+              OR: [{ scopeType: 'ORGANIZATION' }, { brandId: lead.brandId }],
+            },
+          },
+        },
+      });
+      if (!counsellor)
+        throw badRequest(
+          'INVALID_COUNSELLOR',
+          'The counsellor must be an active user of this brand',
+        );
+      const a = await tx.appointment.create({
+        data: {
+          organizationId: lead.organizationId,
+          brandId: lead.brandId,
+          leadId,
+          counsellorId: counsellor.id,
+          startsAt,
+          endsAt: new Date(startsAt.getTime() + input.durationMinutes * 60_000),
+          mode: input.mode,
+          status: input.attended ? 'COMPLETED' : 'NO_SHOW',
+          summary: input.summary,
+          createdById: p.userId,
+          createdAt: now,
+        },
+      });
+      await this.event(
+        tx,
+        a,
+        'COUNSELLING_RECORDED',
+        `${input.attended ? 'Counselling' : 'No-show'} with ${counsellor.name} — ${input.summary}`,
+        p.userId,
+        now,
+      );
+      const next = input.nextTask
+        ? await this.tasks.create(tx, {
+            lead,
+            ownerId: lead.ownerId ?? p.userId,
+            input: input.nextTask,
+            createdById: p.userId,
+            now,
+          })
+        : null;
+      return { appointment: a, nextTask: next };
     });
   }
 

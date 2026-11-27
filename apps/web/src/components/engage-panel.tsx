@@ -12,6 +12,7 @@ import {
   useLoad,
 } from '@/components/ui';
 import { api } from '@/lib/api';
+import { RecordCounselling } from '@/components/pipeline-panel';
 import { fmtDateTime as fmt } from '@/lib/lead-format';
 import { inHours, localInputToIso, OUTCOME_LABEL, toLocalInput } from '@/lib/task-format';
 
@@ -40,7 +41,7 @@ interface AppointmentRow {
   counsellorName: string | null;
 }
 
-type Panel = 'call' | 'whatsapp' | 'email' | 'appointment' | 'optout' | null;
+type Panel = 'call' | 'whatsapp' | 'email' | 'appointment' | 'session' | 'optout' | null;
 const CALL_OUTCOMES = [
   'CONNECTED',
   'NO_ANSWER',
@@ -150,6 +151,12 @@ export function EngagePanel({
           >
             Schedule counselling
           </Button>
+          <Button
+            variant={panel === 'session' ? 'primary' : 'secondary'}
+            onClick={() => toggle('session')}
+          >
+            Record session
+          </Button>
           <Button variant="secondary" onClick={() => toggle('optout')}>
             {doNotContact ? 'Allow contact' : 'Do not contact'}
           </Button>
@@ -180,6 +187,7 @@ export function EngagePanel({
           />
         )}
         {panel === 'appointment' && <BookAppointment leadId={leadId} onDone={done} />}
+        {panel === 'session' && <RecordCounselling leadId={leadId} onDone={done} />}
         {panel === 'optout' && <OptOut leadId={leadId} doNotContact={doNotContact} onDone={done} />}
       </div>
 

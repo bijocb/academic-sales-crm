@@ -18,6 +18,7 @@ import {
 import { api } from '@/lib/api';
 import { CHANNEL_LABEL, fmtDateTime as fmt, leadStatusTone as statusTone } from '@/lib/lead-format';
 import { useSession } from '@/lib/session';
+import { BulkMove, DEFAULT_STAGES, SavedViews, STAGE_LABEL } from '@/components/pipeline-tools';
 import type { Brand, Course, LeadRow, LeadSource, Paged } from '@/lib/types';
 
 export default function LeadsPage() {
@@ -27,15 +28,29 @@ export default function LeadsPage() {
   const [brandId, setBrandId] = useState('');
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
+  const [stage, setStage] = useState('');
+  const [owner, setOwner] = useState('');
   const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
   const leads = useLoad(
     () =>
       api<Paged<LeadRow>>(
-        `/leads?page=${page}&pageSize=25${brandId ? `&brandId=${brandId}` : ''}${status ? `&status=${status}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
+        `/leads?page=${page}&pageSize=25${brandId ? `&brandId=${brandId}` : ''}${status ? `&status=${status}` : ''}${stage ? `&stage=${stage}` : ''}${owner ? `&ownerId=${owner}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
       ),
-    [page, brandId, status, q],
+    [page, brandId, status, stage, owner, q],
   );
+  const filters = { brandId, status, stage, owner, q };
+  const applyView = (f: Record<string, string>) => {
+    setBrandId(f.brandId ?? '');
+    setStatus(f.status ?? '');
+    setStage(f.stage ?? '');
+    setOwner(f.owner ?? '');
+    setQ(f.q ?? '');
+    setPage(1);
+  };
+  const toggleSel = (id: string) =>
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const pages = leads.data ? Math.max(1, Math.ceil(leads.data.total / leads.data.pageSize)) : 1;
   const brandName = (id: string) => brands.data?.find((b) => b.id === id)?.name ?? '';
 
@@ -54,6 +69,16 @@ export default function LeadsPage() {
         <div className="mb-6">
           <NewLead brands={brands.data} onDone={(id) => router.push(`/leads/${id}`)} />
         </div>
+      )}
+      <SavedViews page="leads" current={filters} onApply={applyView} />
+      {selected.length > 0 && (
+        <BulkMove
+          leadIds={selected}
+          onDone={() => {
+            setSelected([]);
+            void leads.reload();
+          }}
+        />
       )}
       <Card
         actions={
@@ -97,12 +122,42 @@ export default function LeadsPage() {
                 ),
               )}
             </Select>
+            <Select
+              aria-label="Stage"
+              value={stage}
+              onChange={(e) => {
+                setStage(e.target.value);
+                setPage(1);
+              }}
+              className="w-48"
+            >
+              <option value="">Any stage</option>
+              {DEFAULT_STAGES.map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </Select>
+            <Select
+              aria-label="Owner"
+              value={owner}
+              onChange={(e) => {
+                setOwner(e.target.value);
+                setPage(1);
+              }}
+              className="w-40"
+            >
+              <option value="">Any owner</option>
+              <option value="me">My leads</option>
+              <option value="none">Unassigned</option>
+            </Select>
           </div>
         }
       >
         <ErrorText error={leads.error} />
         <Table
           head={[
+            '',
             'Lead',
             'Name',
             'Phone',
@@ -110,6 +165,7 @@ export default function LeadsPage() {
             'Original source',
             'Course',
             'Enquiries',
+            'Stage',
             'Status',
             'Last enquiry',
           ]}
@@ -121,6 +177,15 @@ export default function LeadsPage() {
               className="cursor-pointer hover:bg-slate-50"
               onClick={() => router.push(`/leads/${l.id}`)}
             >
+              <Td>
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${l.leadNumber}`}
+                  checked={selected.includes(l.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => toggleSel(l.id)}
+                />
+              </Td>
               <Td className="font-mono text-xs">{l.leadNumber}</Td>
               <Td className="font-medium">{l.person.fullName}</Td>
               <Td className="font-mono text-xs">{l.person.phone ?? l.person.email ?? '—'}</Td>
@@ -132,6 +197,7 @@ export default function LeadsPage() {
               </Td>
               <Td>{l.course?.name ?? '—'}</Td>
               <Td>{l.enquiryCount}</Td>
+              <Td className="whitespace-nowrap">{STAGE_LABEL[l.stage] ?? l.stage}</Td>
               <Td>
                 <Badge tone={statusTone(l.status)}>{l.status}</Badge>
               </Td>

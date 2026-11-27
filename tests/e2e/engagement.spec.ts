@@ -30,6 +30,13 @@ test('log a call and book a counselling session from the lead page', async ({ pa
   // Book counselling
   await page.getByRole('button', { name: 'Schedule counselling' }).click();
   await page.getByLabel('Counsellor').selectOption({ index: 1 });
+  // A unique future slot so repeated local runs never collide with earlier bookings.
+  const slot = new Date(Date.now() + (2 + (Number(run) % 300)) * 86_400_000);
+  slot.setHours(10, Number(run) % 60, 0, 0);
+  const local = new Date(slot.getTime() - slot.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
+  await page.getByLabel('Starts').fill(local);
   await page.getByLabel('Mode').selectOption('VIDEO');
   await page.getByLabel('Place or meeting link (optional)').fill('https://meet.example.com/e2e');
   await page.getByRole('button', { name: 'Book appointment' }).click();

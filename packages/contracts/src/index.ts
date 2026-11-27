@@ -5,4 +5,5 @@ export * from './leads';
 export * from './allocation';
 export * from './tasks';
 export * from './engagement';
+export * from './pipeline';
 export { z } from 'zod';

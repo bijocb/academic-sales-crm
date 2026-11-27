@@ -16,6 +16,11 @@ const NAV: NavItem[] = [
   { href: '/', label: 'Dashboard', show: (s) => !s.me.user.isPlatformAdmin },
   { href: '/leads', label: 'Leads', show: (s) => s.can('lead.read') || s.can('lead.read_own') },
   {
+    href: '/pipeline',
+    label: 'Pipeline',
+    show: (s) => !s.me.user.isPlatformAdmin && (s.can('lead.read') || s.can('lead.read_own')),
+  },
+  {
     href: '/tasks',
     label: 'My tasks',
     show: (s) => !s.me.user.isPlatformAdmin && (s.can('lead.read') || s.can('lead.read_own')),

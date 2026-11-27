@@ -32,7 +32,7 @@ test('first-call task: complete with an outcome and a next action, which resolve
   await expect(page.getByText('First call', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('On track')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Complete' }).click();
+  await page.getByRole('button', { name: 'Complete', exact: true }).click();
   await page.getByLabel('Outcome').selectOption('NO_ANSWER');
   await page.getByLabel('Notes').fill('Rang twice');
   await page.getByLabel('Next action note (optional)').fill('Try again in the evening');

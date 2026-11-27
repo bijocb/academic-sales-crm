@@ -19,6 +19,7 @@ import type { Brand, Course, LeadAssignmentRow, LeadDetail, TimelineItem } from 
 import { AssignLead } from '@/components/assign-lead';
 import { LeadWork } from '@/components/task-panel';
 import { EngagePanel } from '@/components/engage-panel';
+import { QualificationCard, QuotationsCard, StagePanel } from '@/components/pipeline-panel';
 
 const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
   ENQUIRY: 'blue',
@@ -39,6 +40,9 @@ const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
   OPTED_OUT: 'amber',
   APPOINTMENT_SCHEDULED: 'blue',
   APPOINTMENT_COMPLETED: 'green',
+  STAGE_CHANGED: 'blue',
+  QUOTATION_ACCEPTED: 'green',
+  COUNSELLING_RECORDED: 'green',
 };
 
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -50,6 +54,12 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
   const [editing, setEditing] = useState(false);
   const assignments = useLoad(() => api<LeadAssignmentRow[]>(`/leads/${id}/assignments`), [id]);
   const [assigning, setAssigning] = useState(false);
+  /** Bumped whenever lead data changes, so panels that derive from it (stage readiness) reload. */
+  const [rev, setRev] = useState(0);
+  const changed = () => {
+    setRev((r) => r + 1);
+    void Promise.all([lead.reload(), timeline.reload()]);
+  };
   const refresh = async () => {
     await Promise.all([lead.reload(), timeline.reload(), assignments.reload()]);
   };
@@ -247,12 +257,19 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
 
         <div className="space-y-6 lg:col-span-2">
           {l.status !== 'MERGED' && (
+            <StagePanel
+              key={`stage:${l.stage}:${l.status}:${rev}`}
+              leadId={l.id}
+              onChanged={changed}
+            />
+          )}
+          {l.status !== 'MERGED' && (
             <EngagePanel
               leadId={l.id}
               brandId={l.brandId}
               doNotContact={l.person.doNotContact}
               canEdit={l.canEdit}
-              onChanged={() => void Promise.all([lead.reload(), timeline.reload()])}
+              onChanged={changed}
             />
           )}
           {l.status !== 'MERGED' && (
@@ -261,8 +278,24 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
               leadId={l.id}
               leadStatus={l.status}
               canEdit={l.canEdit}
-              onChanged={() => void Promise.all([lead.reload(), timeline.reload()])}
+              onChanged={changed}
             />
+          )}
+          {l.status !== 'MERGED' && (
+            <div className="grid gap-6 xl:grid-cols-2">
+              <QualificationCard
+                leadId={l.id}
+                brandId={l.brandId}
+                canEdit={l.canEdit}
+                onChanged={changed}
+              />
+              <QuotationsCard
+                leadId={l.id}
+                brandId={l.brandId}
+                canEdit={l.canEdit && l.status === 'OPEN'}
+                onChanged={changed}
+              />
+            </div>
           )}
           <Card
             title={`Timeline · ${l.enquiries.length} enquir${l.enquiries.length === 1 ? 'y' : 'ies'}`}

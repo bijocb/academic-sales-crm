@@ -57,6 +57,9 @@ import { EngagementService } from './engagement/engagement.service';
 import { AppointmentsService } from './engagement/appointments.service';
 import { TemplatesService } from './engagement/templates.service';
 import { buildProviderRegistry, ProviderRegistry } from './engagement/providers';
+import { PipelineController } from './pipeline/pipeline.controller';
+import { PipelineService } from './pipeline/pipeline.service';
+import { QuotationsService } from './pipeline/quotations.service';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -109,6 +112,7 @@ export class AppModule implements NestModule {
         AllocationController,
         WorkController,
         EngagementController,
+        PipelineController,
         InternalController,
       ],
       providers: [
@@ -141,6 +145,8 @@ export class AppModule implements NestModule {
         EngagementService,
         AppointmentsService,
         TemplatesService,
+        PipelineService,
+        QuotationsService,
         {
           provide: ProviderRegistry,
           useFactory: (c: AppConfig) => buildProviderRegistry(c.NODE_ENV),

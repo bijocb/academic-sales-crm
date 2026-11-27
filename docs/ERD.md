@@ -132,3 +132,13 @@ erDiagram
 | `message_events`    | **Append-only**: queued, sent, retry, failed, every provider receipt (applied or ignored)                                                      |
 | `message_templates` | Per brand and channel; DRAFT / APPROVED / ARCHIVED; provider template name                                                                     |
 | `appointments`      | Counselling: counsellor, start/end, mode, place or link, SCHEDULED / COMPLETED / NO_SHOW / CANCELLED, summary                                  |
+
+## Phase 9 additions
+
+| Table / column           | Notes                                                                                                                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `leads.stage_changed_at` | When the current stage was entered                                                                                                                                         |
+| `lead_stage_history`     | **Append-only**: from, to, FORWARD/BACKWARD, actor, reason, snapshot of which stage fields were present                                                                    |
+| `lead_qualifications`    | One per lead: qualification, eligibility, requirement, interest, preferred courses, intake, fee readiness, objections                                                      |
+| `quotations`             | Q-number per organization, course, batch, list fee − discount = total (minor units, CHECK), validity, OPEN/ACCEPTED/REJECTED/SUPERSEDED/EXPIRED; terms immutable (trigger) |
+| `saved_views`            | Per-user named filters for the leads list and pipeline board                                                                                                               |

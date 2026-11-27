@@ -28,7 +28,8 @@ export class LeadsService {
     private readonly detector: DuplicateDetector,
   ) {}
 
-  private async visibility(tx: Tx, p: OrgPrincipal): Promise<Prisma.LeadWhereInput | null> {
+  /** Lead filter for what the caller may see (null = nothing). */
+  async visibility(tx: Tx, p: OrgPrincipal): Promise<Prisma.LeadWhereInput | null> {
     const s = p.authz.scope('lead.read');
     if (s.all) return {};
     const or: Prisma.LeadWhereInput[] = [];
@@ -45,6 +46,13 @@ export class LeadsService {
     }
     if (p.authz.has('lead.read_own')) {
       or.push({ ownerId: p.userId }, { enquiries: { some: { createdById: p.userId } } });
+      // A-009: counsellors are lead participants.
+      const counselled = await tx.appointment.findMany({
+        where: { counsellorId: p.userId },
+        select: { leadId: true },
+        distinct: ['leadId'],
+      });
+      if (counselled.length) or.push({ id: { in: counselled.map((c) => c.leadId) } });
     }
     return or.length ? { OR: or } : null;
   }
@@ -87,6 +95,15 @@ export class LeadsService {
           vis,
           q.brandId ? { brandId: q.brandId } : {},
           q.status ? { status: q.status } : { status: { not: 'MERGED' } },
+          q.stage ? { stage: q.stage } : {},
+          q.courseId ? { courseId: q.courseId } : {},
+          q.ownerId === 'none'
+            ? { ownerId: null }
+            : q.ownerId === 'me'
+              ? { ownerId: p.userId }
+              : q.ownerId
+                ? { ownerId: q.ownerId }
+                : {},
           q.q
             ? {
                 OR: [
@@ -127,6 +144,7 @@ export class LeadsService {
           stage: l.stage,
           status: l.status,
           ownerId: l.ownerId,
+          stageChangedAt: l.stageChangedAt,
           course: l.course,
           enquiryCount: l.enquiryCount,
           firstEnquiryAt: l.firstEnquiryAt,
