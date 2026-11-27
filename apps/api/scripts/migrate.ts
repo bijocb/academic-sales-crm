@@ -16,6 +16,7 @@ process.env.APP_DATABASE_URL ??= process.env.MIGRATION_DATABASE_URL;
 const cwd = path.resolve(__dirname, '..');
 const run = (cmd: string) => execSync(cmd, { cwd, stdio: 'inherit', env: process.env });
 
+run('npx prisma generate');
 run('npx prisma migrate deploy');
 run('npx tsx scripts/setup-db-role.ts');
 run('npx tsx scripts/backfill-defaults.ts');
