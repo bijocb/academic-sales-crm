@@ -73,6 +73,23 @@ describe('Authz', () => {
       expect(brandMgr.canGrant(['lead.read'], { brandId: 'b2' })).toBe(false);
       expect(brandMgr.canGrant(['lead.read'], {})).toBe(false);
     });
+    it('lead.receive can be conferred by anyone who may assign leads there', () => {
+      const tl = new Authz([
+        g('TEAM', ['role.assign', 'lead.reassign', 'lead.read_own'], {
+          brandId: 'b1',
+          branchId: 'br1',
+          teamId: 't1',
+        }),
+      ]);
+      expect(
+        tl.canGrant(['lead.read_own', 'lead.receive'], {
+          brandId: 'b1',
+          branchId: 'br1',
+          teamId: 't1',
+        }),
+      ).toBe(true);
+      expect(brandMgr.canGrant(['lead.receive'], { brandId: 'b1' })).toBe(false); // no lead.assign in that fixture
+    });
     it('requires role.assign itself', () => {
       expect(branchMgr.canGrant(['team.manage'], { brandId: 'b1', branchId: 'br1' })).toBe(false);
     });

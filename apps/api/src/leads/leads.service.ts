@@ -185,7 +185,10 @@ export class LeadsService {
         },
       });
       const full = this.canSeeFullPii(p, lead.brandId);
-      const [mergedInto, mergedLeads, openSuggestions] = await Promise.all([
+      const [owner, mergedInto, mergedLeads, openSuggestions] = await Promise.all([
+        lead.ownerId
+          ? tx.user.findUnique({ where: { id: lead.ownerId }, select: { id: true, name: true } })
+          : null,
         lead.mergedIntoLeadId
           ? tx.lead.findUnique({
               where: { id: lead.mergedIntoLeadId },
@@ -207,6 +210,7 @@ export class LeadsService {
       return {
         ...lead,
         person: this.presentPerson(p, lead.brandId, lead.person),
+        owner,
         mergedInto,
         mergedLeads,
         openDuplicateSuggestions: openSuggestions,

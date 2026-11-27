@@ -21,6 +21,7 @@ import {
   useAction,
   useLoad,
 } from '@/components/ui';
+import { LeadCapacity } from '@/components/lead-capacity';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import type { Assignment, Paged, User } from '@/lib/types';
@@ -115,6 +116,11 @@ export default function UsersPage() {
             options={scope.data}
             onChanged={() => void users.reload()}
           />
+          {can('user.manage') && (
+            <div className="mt-6">
+              <LeadCapacity userId={selected} />
+            </div>
+          )}
         </div>
       )}
     </>

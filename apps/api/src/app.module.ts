@@ -40,6 +40,10 @@ import { LeadConfigService } from './leads/lead-config.service';
 import { IntakeAdminService } from './leads/intake-admin.service';
 import { DuplicateDetector } from './leads/duplicate-detector';
 import { DuplicatesService } from './leads/duplicates.service';
+import { AllocationController } from './allocation/allocation.controller';
+import { AllocationService } from './allocation/allocation.service';
+import { AllocationAdminService } from './allocation/allocation-admin.service';
+import { NotificationsService } from './allocation/notifications.service';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -89,6 +93,7 @@ export class AppModule implements NestModule {
         SettingsController,
         IntakeController,
         LeadsController,
+        AllocationController,
       ],
       providers: [
         { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -108,6 +113,9 @@ export class AppModule implements NestModule {
         IntakeAdminService,
         DuplicateDetector,
         DuplicatesService,
+        AllocationService,
+        AllocationAdminService,
+        NotificationsService,
       ],
     };
   }

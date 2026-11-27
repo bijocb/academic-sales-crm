@@ -97,7 +97,7 @@ export class RolesService {
   /** Custom roles are organization-wide; you cannot define a role stronger than yourself. */
   private assertCanDefine(p: OrgPrincipal, permissions: string[]) {
     if (!p.authz.can('role.manage')) throw forbidden();
-    const missing = permissions.filter((perm) => !p.authz.can(perm as Permission));
+    const missing = permissions.filter((perm) => !p.authz.holdsOrMayConfer(perm as Permission));
     if (missing.length)
       throw forbidden(`You cannot grant permissions you do not hold: ${missing.join(', ')}`);
   }

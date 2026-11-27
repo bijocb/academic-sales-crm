@@ -80,9 +80,23 @@ export class Authz {
   canGrant(rolePermissions: Iterable<string>, target: ScopeTarget): boolean {
     if (!this.can('role.assign', target)) return false;
     for (const p of rolePermissions) {
-      if (!this.can(p as Permission, target)) return false;
+      if (!this.holdsOrMayConfer(p as Permission, target)) return false;
     }
     return true;
+  }
+
+  /**
+   * `lead.receive` only marks someone as a lead recipient (it grants no access), so anyone who
+   * may assign leads at that scope may confer it without holding it. Everything else must be held.
+   */
+  holdsOrMayConfer(permission: Permission, target: ScopeTarget = {}): boolean {
+    if (permission === 'lead.receive')
+      return (
+        this.can('lead.assign', target) ||
+        this.can('lead.reassign', target) ||
+        this.can('lead.receive', target)
+      );
+    return this.can(permission, target);
   }
 
   /** Permission → list of scopes, for the UI (/auth/me). */

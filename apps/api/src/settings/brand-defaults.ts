@@ -52,6 +52,10 @@ export async function ensureBrandDefaults(
     });
     created.push('pipeline_stages');
   }
+  if (!(await tx.allocationSettings.findUnique({ where: { brandId } }))) {
+    await tx.allocationSettings.create({ data: { organizationId, brandId } });
+    created.push('allocation_settings');
+  }
   if ((await tx.leadSource.count({ where: { brandId } })) === 0) {
     await tx.leadSource.createMany({
       data: DEFAULT_LEAD_SOURCES.map((x) => ({ organizationId, brandId, ...x })),

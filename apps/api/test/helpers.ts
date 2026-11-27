@@ -74,7 +74,7 @@ export async function resetDatabase(owner: PrismaClient): Promise<void> {
   await owner.$transaction([
     owner.$executeRawUnsafe(`SET LOCAL session_replication_role = replica`),
     owner.$executeRawUnsafe(
-      `TRUNCATE lead_events, person_merges, duplicate_candidates, outbox_events, org_counters, enquiries, intake_exceptions, lead_imports, intake_keys, campaigns, leads, persons, lead_sources, sla_checkpoints, sla_policies, pipeline_stages, working_hours, holidays, batches, courses, course_categories, audit_logs, auth_tokens, sessions, team_members, role_assignments, role_permissions, roles, teams, branches, users, brands, organizations CASCADE`,
+      `TRUNCATE notifications, lead_assignments, allocation_runs, allocation_rules, allocation_settings, user_leaves, lead_events, person_merges, duplicate_candidates, outbox_events, org_counters, enquiries, intake_exceptions, lead_imports, intake_keys, campaigns, leads, persons, lead_sources, sla_checkpoints, sla_policies, pipeline_stages, working_hours, holidays, batches, courses, course_categories, audit_logs, auth_tokens, sessions, team_members, role_assignments, role_permissions, roles, teams, branches, users, brands, organizations CASCADE`,
     ),
   ]);
 }
@@ -90,7 +90,11 @@ export interface OrgFixture {
 }
 
 /** Builds an org with brands B1 (IN) and B2 (AE), a branch and a team in each. */
-export async function createOrgFixture(owner: PrismaClient, slug: string): Promise<OrgFixture> {
+export async function createOrgFixture(
+  owner: PrismaClient,
+  slug: string,
+  opts: { autoAllocate?: boolean } = {},
+): Promise<OrgFixture> {
   return owner.$transaction(async (tx) => {
     const org = await tx.organization.create({
       data: { name: `Org ${slug}`, slug, country: 'IN', timezone: 'Asia/Kolkata', currency: 'INR' },
@@ -114,6 +118,9 @@ export async function createOrgFixture(owner: PrismaClient, slug: string): Promi
         },
       });
       await ensureBrandDefaults(tx, b);
+      // Earlier suites test intake without allocation; Phase 6 suites opt in.
+      if (!opts.autoAllocate)
+        await tx.allocationSettings.update({ where: { brandId: b.id }, data: { enabled: false } });
       const br = await tx.branch.create({
         data: {
           organizationId: org.id,

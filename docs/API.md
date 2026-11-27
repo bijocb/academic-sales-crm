@@ -76,3 +76,22 @@ Errors: `{ "error": { "code", "message", "details?", "correlationId" } }`. Out-o
 | `POST /duplicates/:id/merge`                     | same                                     | `{ survivor, fields: {fullName, phone, email, city}, note? }`                                                                  |
 | `POST /duplicates/:id/dismiss`                   | same                                     | `{ note }`                                                                                                                     |
 | `POST /duplicates/scan`                          | `lead.merge` at organization scope       | re-scan all people                                                                                                             |
+
+## Phase 6 — allocation
+
+| Method & path                                                                                     | Permission                                             | Notes                                                                  |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `GET/PATCH /allocation/settings?brandId`                                                          | view\*; edit: `allocation.manage`                      | enabled, respectWorkingHours, defaultStrategy                          |
+| `GET/POST /allocation/rules`, `PATCH/DELETE /allocation/rules/:id`, `PUT /allocation/rules/order` | view\*; changes: `allocation.manage` in the brand      | each change bumps the rule version                                     |
+| `GET /allocation/queue?brandId`                                                                   | view\*                                                 | unassigned active leads                                                |
+| `POST /allocation/queue/allocate?brandId&ignoreWorkingHours`                                      | `lead.assign`                                          | drain the queue                                                        |
+| `GET /allocation/executives?brandId`                                                              | view\*                                                 | load, capacity, languages, availability, leave                         |
+| `GET /allocation/runs?brandId`                                                                    | view\*                                                 | recent decisions with exclusion reasons                                |
+| `POST /leads/:id/allocate`                                                                        | `lead.assign` in the lead's brand                      | retry automatic allocation                                             |
+| `POST /leads/:id/assign`                                                                          | `lead.assign` (no owner) / `lead.reassign` (has owner) | `{ userId, reason }`; team leaders only within their team              |
+| `GET /leads/:id/assignments`                                                                      | lead visible                                           | ownership history, newest first; `GET /leads/:id` now includes `owner` |
+| `GET/PUT /me/availability`                                                                        | signed in                                              | `{ isAvailable }`                                                      |
+| `GET/POST /users/:id/leaves`, `DELETE /leaves/:id`                                                | self, or `user.manage` over the user                   | `{ startDate, endDate, reason? }`                                      |
+| `GET /notifications?unread`, `POST /notifications/read`, `POST /notifications/:id/read`           | signed in                                              | own notifications only                                                 |
+
+view\* = any of `lead.assign`, `lead.reassign`, `allocation.manage` in the brand (otherwise 404).

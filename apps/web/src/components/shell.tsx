@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
+import { AvailabilityToggle, NotificationBell } from '@/components/header-widgets';
 
 interface NavItem {
   href: string;
@@ -17,6 +18,11 @@ const NAV: NavItem[] = [
   { href: '/leads/import', label: 'Import leads', show: (s) => s.can('lead.import') },
   { href: '/leads/exceptions', label: 'Rejected leads', show: (s) => s.can('lead.import') },
   { href: '/leads/duplicates', label: 'Possible duplicates', show: (s) => s.can('lead.merge') },
+  {
+    href: '/allocation',
+    label: 'Allocation',
+    show: (s) => s.can('lead.assign') || s.can('lead.reassign') || s.can('allocation.manage'),
+  },
   {
     href: '/lead-sources',
     label: 'Sources & campaigns',
@@ -93,6 +99,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
             Menu
           </button>
           <div className="ml-auto flex items-center gap-3 text-sm">
+            <AvailabilityToggle />
+            <NotificationBell />
             <span className="hidden text-slate-600 sm:inline">{session.me.user.name}</span>
             <button
               onClick={logout}

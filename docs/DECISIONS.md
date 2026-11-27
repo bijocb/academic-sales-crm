@@ -53,12 +53,15 @@ Status: **DECIDED** = confirmed by business owner · **ASSUMED** = default chose
 | A-026 | A new enquiry on the same active lead from a different channel within 24 hours is classified CROSS_CHANNEL_DUPLICATE (one ad click submitted twice); otherwise EXISTING_LEAD. A known person's first lead in another brand is EXISTING_PERSON. | FR-005 |
 | A-027 | Duplicate suggestions score: same email 0.6, phone one digit/swap apart 0.5, same normalized name 0.3 (+0.1 same city), shared name word 0.15; ≥ 0.6 is suggested. A common name alone is never suggested. Dismissed pairs are never re-raised. Changing a phone to another person's number is refused and raises a SAME_PHONE suggestion. | FR-005 |
 | A-028 | Merge keeps both person rows (the merged one marked, original IDs kept); where both have an active lead in a brand the older lead survives and the newer becomes MERGED. Enquiries are never modified. Merging requires `lead.merge` over every brand involved. Un-merge is not offered (history is preserved in `person_merges`). | FR-005 |
+| A-029 | Only holders of `lead.receive` (Sales Executive template) are allocated leads; Organization Admin holds every permission except this one. Only grants tied to the lead's brand count (organization-wide grants never make someone a recipient). `lead.receive` may be granted by anyone holding `lead.assign` or `lead.reassign` at that scope. Users with no languages accept any language; empty capacity = no limit. | FR-007 |
+| A-030 | Allocation runs right after a lead is created. Leads that cannot be placed (outside working hours, nobody eligible) wait in the unassigned queue; managers are notified once per lead. The queue is drained by a manager ("Allocate queued leads") and by each new lead of the brand; a timed drain every minute needs the always-on worker (Phase 7 — Vercel serverless has no background worker). Manual assignment needs a reason and may exceed capacity (recorded as over capacity). | FR-007 |
 
 ## Resolved
 
-| ID   | Resolution                                               | Date       |
-| ---- | -------------------------------------------------------- | ---------- |
-| O-01 | GitHub repository `bijocb/academic-sales-crm` (private). | 2026-11-27 |
+| ID   | Resolution                                                                                                   | Date       |
+| ---- | ------------------------------------------------------------------------------------------------------------ | ---------- |
+| O-01 | GitHub repository `bijocb/academic-sales-crm` (private).                                                     | 2026-11-27 |
+| O-05 | Executive availability = brand working hours + approved leave + a personal "taking leads" toggle (option c). | 2026-11-27 |
 
 ## Open — needed before the phase shown
 
@@ -67,7 +70,6 @@ Status: **DECIDED** = confirmed by business owner · **ASSUMED** = default chose
 | O-02 | Hosting provider and region; data-residency requirements for India (DPDP Act 2023) and UAE (PDPL, plus DIFC/ADGM rules if any organization is in a free zone).                                         | Phase 1 / 15 |
 | O-03 | Login method (email + password only, or Google/Microsoft SSO); which roles must use MFA.                                                                                                               | Phase 2      |
 | O-04 | Which lead sources go live first; Meta and Google ad accounts available for integration.                                                                                                               | Phase 4      |
-| O-05 | How executive availability is set (manual toggle, shift timetable, leave records).                                                                                                                     | Phase 6      |
 | O-06 | Telephony provider(s) for India and UAE; WhatsApp Business provider; email provider.                                                                                                                   | Phase 8      |
 | O-07 | Recovery rules: attempts, cooldown, expiry.                                                                                                                                                            | Phase 10     |
 | O-08 | Document checklist per course; LMS product and API.                                                                                                                                                    | Phase 11     |

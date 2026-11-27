@@ -101,3 +101,15 @@ erDiagram
 | `duplicate_candidates`                            | Pair (a < b), score, reasons, OPEN/MERGED/DISMISSED; unique pair                                           |
 | `person_merges`                                   | **Append-only**: field choices, lead plan, before-snapshots, who/when/note                                 |
 | `lead_events`                                     | **Append-only** timeline events (NOTE, PROFILE_UPDATED, LEAD_MERGED, PERSON_MERGED; calls etc. in Phase 8) |
+
+## Phase 6 additions
+
+| Table / column                                  | Notes                                                                                                           |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `users.is_available`, `availability_changed_at` | Personal "taking leads" toggle                                                                                  |
+| `user_leaves`                                   | Leave date ranges (brand time zone); cancelled, never deleted                                                   |
+| `allocation_settings`                           | Per brand: enabled, respect working hours, default strategy, rule version                                       |
+| `allocation_rules`                              | Ordered per brand; conditions (courses, channels, languages, cities) → pool (team or users) + strategy          |
+| `allocation_runs`                               | **Append-only**: every attempt with outcome, candidates, exclusion reasons, rule and rule version               |
+| `lead_assignments`                              | **Append-only** ownership history: from/to, type (AUTO, MANUAL, REASSIGN_AUTO, RECOVERY), reason, over capacity |
+| `notifications`                                 | In-app notifications, unique `(user_id, dedup_key)`                                                             |

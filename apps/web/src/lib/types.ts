@@ -196,6 +196,8 @@ export interface LeadDetail extends Omit<LeadRow, 'originalSource'> {
   mergedLeads: Array<{ id: string; leadNumber: string }>;
   openDuplicateSuggestions: number;
   canEdit: boolean;
+  ownerId: string | null;
+  owner: { id: string; name: string } | null;
   personId: string;
   course: { id: string; name: string; code?: string } | null;
   originalAttribution: {
@@ -288,4 +290,17 @@ export interface IntakeExceptionRow {
   errors: FieldIssue[];
   status: string;
   receivedAt: string;
+}
+
+export interface LeadAssignmentRow {
+  id: string;
+  attemptNo: number;
+  type: string;
+  overCapacity: boolean;
+  reason: string | null;
+  assignedAt: string;
+  toUserId: string;
+  toName?: string;
+  fromName: string | null;
+  byName: string | null;
 }

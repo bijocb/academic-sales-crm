@@ -81,6 +81,7 @@ Filter → rank → pick → record:
 - Filter: active; role Sales Executive in the lead's brand; course/language/region tags match; on shift and available; below max active leads; not in cooldown; not a previous owner of this lead.
 - Rank: lowest load ratio (active ÷ capacity), then optional performance weight, then weighted round-robin pointer; final tie-break by user id (deterministic).
 - Record: `allocation_runs` with candidates considered, reasons for exclusion, rule version.
+- Implemented (Phase 6): eligibility = `lead.receive` in the brand + available toggle + not on leave + below capacity + language + rule pool; strategies LEAST_LOADED / ROUND_ROBIN; performance weighting is not yet used (A-029, A-030).
 - No candidate → unassigned queue + manager alert. Attempts > max (A-010) → manager priority queue.
 - Allocation runs under a per-lead lock (DB advisory lock) so retries never double-assign; first task created in the same transaction (SRS 11: exactly one initial task).
 

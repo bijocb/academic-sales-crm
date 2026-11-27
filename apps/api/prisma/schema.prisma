@@ -131,6 +131,26 @@ enum DuplicatePolicy {
   SKIP_EXISTING
 }
 
+enum AllocationStrategy {
+  LEAST_LOADED
+  ROUND_ROBIN
+}
+
+enum AssignmentType {
+  AUTO
+  MANUAL
+  REASSIGN_AUTO
+  RECOVERY
+}
+
+enum AllocationOutcome {
+  ASSIGNED
+  NO_ELIGIBLE_USER
+  OUTSIDE_WORKING_HOURS
+  ALREADY_ASSIGNED
+  DISABLED
+}
+
 enum AuthTokenType {
   INVITE
   PASSWORD_RESET
@@ -237,25 +257,27 @@ model Branch {
 }
 
 model User {
-  id                String     @id @default(uuid()) @db.Uuid
-  organizationId    String?    @map("organization_id") @db.Uuid // null only for platform admins
-  isPlatformAdmin   Boolean    @default(false) @map("is_platform_admin")
-  email             String     @unique // stored lower-case (A-013)
-  name              String
-  phone             String?
-  passwordHash      String?    @map("password_hash")
-  status            UserStatus @default(INVITED)
-  managerId         String?    @map("manager_id") @db.Uuid
-  maxActiveLeads    Int?       @map("max_active_leads")
-  languages         String[]   @default([])
-  failedLoginCount  Int        @default(0) @map("failed_login_count")
-  lockedUntil       DateTime?  @map("locked_until") @db.Timestamptz(3)
-  mfaEnabled        Boolean    @default(false) @map("mfa_enabled")
-  mfaSecret         String?    @map("mfa_secret")
-  passwordChangedAt DateTime?  @map("password_changed_at") @db.Timestamptz(3)
-  lastLoginAt       DateTime?  @map("last_login_at") @db.Timestamptz(3)
-  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                    String     @id @default(uuid()) @db.Uuid
+  organizationId        String?    @map("organization_id") @db.Uuid // null only for platform admins
+  isPlatformAdmin       Boolean    @default(false) @map("is_platform_admin")
+  email                 String     @unique // stored lower-case (A-013)
+  name                  String
+  phone                 String?
+  passwordHash          String?    @map("password_hash")
+  status                UserStatus @default(INVITED)
+  managerId             String?    @map("manager_id") @db.Uuid
+  maxActiveLeads        Int?       @map("max_active_leads")
+  languages             String[]   @default([])
+  failedLoginCount      Int        @default(0) @map("failed_login_count")
+  lockedUntil           DateTime?  @map("locked_until") @db.Timestamptz(3)
+  mfaEnabled            Boolean    @default(false) @map("mfa_enabled")
+  mfaSecret             String?    @map("mfa_secret")
+  passwordChangedAt     DateTime?  @map("password_changed_at") @db.Timestamptz(3)
+  lastLoginAt           DateTime?  @map("last_login_at") @db.Timestamptz(3)
+  isAvailable           Boolean    @default(true) @map("is_available")
+  availabilityChangedAt DateTime?  @map("availability_changed_at") @db.Timestamptz(3)
+  createdAt             DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   manager         User?            @relation("UserManager", fields: [managerId], references: [id], onDelete: SetNull)
@@ -909,4 +931,114 @@ model LeadEvent {
 
   @@index([organizationId, leadId, occurredAt])
   @@map("lead_events")
+}
+
+// ---------------------------------------------------------------- Phase 6
+
+model UserLeave {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  startDate      DateTime  @map("start_date") @db.Date
+  endDate        DateTime  @map("end_date") @db.Date
+  reason         String?
+  createdById    String?   @map("created_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  cancelledAt    DateTime? @map("cancelled_at") @db.Timestamptz(3)
+
+  @@index([organizationId, userId, startDate])
+  @@map("user_leaves")
+}
+
+model AllocationSettings {
+  id                  String             @id @default(uuid()) @db.Uuid
+  organizationId      String             @map("organization_id") @db.Uuid
+  brandId             String             @unique @map("brand_id") @db.Uuid
+  enabled             Boolean            @default(true)
+  respectWorkingHours Boolean            @default(true) @map("respect_working_hours")
+  defaultStrategy     AllocationStrategy @default(LEAST_LOADED) @map("default_strategy")
+  ruleVersion         Int                @default(1) @map("rule_version")
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("allocation_settings")
+}
+
+model AllocationRule {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  brandId        String             @map("brand_id") @db.Uuid
+  name           String
+  position       Int
+  active         Boolean            @default(true)
+  courseIds      String[]           @default([]) @map("course_ids") @db.Uuid
+  channels       LeadChannel[]      @default([])
+  languages      String[]           @default([])
+  cities         String[]           @default([])
+  teamId         String?            @map("team_id") @db.Uuid
+  userIds        String[]           @default([]) @map("user_ids") @db.Uuid
+  strategy       AllocationStrategy @default(LEAST_LOADED)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([organizationId, brandId, position])
+  @@map("allocation_rules")
+}
+
+/// Append-only record of every allocation decision (explainability).
+model AllocationRun {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  brandId        String             @map("brand_id") @db.Uuid
+  leadId         String             @map("lead_id") @db.Uuid
+  trigger        String
+  outcome        AllocationOutcome
+  ruleId         String?            @map("rule_id") @db.Uuid
+  ruleVersion    Int                @map("rule_version")
+  strategy       AllocationStrategy
+  chosenUserId   String?            @map("chosen_user_id") @db.Uuid
+  candidates     Json
+  createdAt      DateTime           @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, leadId, createdAt])
+  @@index([organizationId, brandId, createdAt])
+  @@map("allocation_runs")
+}
+
+/// Append-only ownership history. Never updated or deleted.
+model LeadAssignment {
+  id              String         @id @default(uuid()) @db.Uuid
+  organizationId  String         @map("organization_id") @db.Uuid
+  brandId         String         @map("brand_id") @db.Uuid
+  leadId          String         @map("lead_id") @db.Uuid
+  fromUserId      String?        @map("from_user_id") @db.Uuid
+  toUserId        String         @map("to_user_id") @db.Uuid
+  type            AssignmentType
+  reason          String?
+  attemptNo       Int            @map("attempt_no")
+  allocationRunId String?        @map("allocation_run_id") @db.Uuid
+  ruleVersion     Int?           @map("rule_version")
+  overCapacity    Boolean        @default(false) @map("over_capacity")
+  assignedById    String?        @map("assigned_by_id") @db.Uuid
+  assignedAt      DateTime       @map("assigned_at") @db.Timestamptz(3)
+
+  @@index([organizationId, leadId, assignedAt])
+  @@index([organizationId, toUserId, assignedAt])
+  @@map("lead_assignments")
+}
+
+model Notification {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  type           String
+  title          String
+  body           String?
+  link           String?
+  dedupKey       String?   @map("dedup_key")
+  createdAt      DateTime  @map("created_at") @db.Timestamptz(3)
+  readAt         DateTime? @map("read_at") @db.Timestamptz(3)
+
+  @@unique([userId, dedupKey])
+  @@index([organizationId, userId, readAt, createdAt])
+  @@map("notifications")
 }

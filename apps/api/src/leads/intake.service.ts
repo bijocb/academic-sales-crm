@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { LeadChannel } from '@prisma/client';
 import type { LeadInput } from '@crm/contracts';
@@ -8,6 +8,7 @@ import { Db, Tx } from '../db/db.service';
 import { dedupKeyFor, FieldIssue, normalizeEmail, normalizePhone } from './normalize';
 import { DuplicateDetector } from './duplicate-detector';
 import { nameKey } from './duplicate-rules';
+import { AllocationService } from '../allocation/allocation.service';
 
 /** Same active lead, different channel within this window ⇒ CROSS_CHANNEL_DUPLICATE (A-026). */
 export const CROSS_CHANNEL_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -68,21 +69,33 @@ export class IntakeService {
     private readonly clock: Clock,
     private readonly audit: AuditService,
     private readonly duplicates: DuplicateDetector,
+    @Optional() private readonly allocation?: AllocationService,
   ) {}
 
   async ingest(origin: IngestOrigin, input: LeadInput): Promise<IngestResult> {
+    let result: IngestResult;
     try {
-      return await this.db.tenant(origin.organizationId, (tx) =>
+      result = await this.db.tenant(origin.organizationId, (tx) =>
         this.ingestInTx(tx, origin, input),
       );
     } catch (e) {
       // A concurrent identical submission or a person created in parallel: retry once,
       // the second attempt sees the committed row and resolves to replay / existing person.
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-        return this.db.tenant(origin.organizationId, (tx) => this.ingestInTx(tx, origin, input));
-      }
-      throw e;
+        result = await this.db.tenant(origin.organizationId, (tx) =>
+          this.ingestInTx(tx, origin, input),
+        );
+      } else throw e;
     }
+    // Allocation runs after the intake transaction commits: a failure never loses the lead.
+    if (result.outcome === 'CREATED_LEAD' && result.leadId && this.allocation) {
+      await this.allocation.allocateAfterIntake(
+        origin.organizationId,
+        origin.brandId,
+        result.leadId,
+      );
+    }
+    return result;
   }
 
   /** Stores a submission that could not even be parsed (e.g. malformed import row). Idempotent. */

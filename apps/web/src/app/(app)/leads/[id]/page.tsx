@@ -15,7 +15,8 @@ import {
 import { api } from '@/lib/api';
 import { CHANNEL_LABEL, fmtDateTime as fmt, leadStatusTone } from '@/lib/lead-format';
 import { useSession } from '@/lib/session';
-import type { Brand, Course, LeadDetail, TimelineItem } from '@/lib/types';
+import type { Brand, Course, LeadAssignmentRow, LeadDetail, TimelineItem } from '@/lib/types';
+import { AssignLead } from '@/components/assign-lead';
 
 const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
   ENQUIRY: 'blue',
@@ -23,6 +24,8 @@ const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
   PROFILE_UPDATED: 'amber',
   LEAD_MERGED: 'green',
   PERSON_MERGED: 'green',
+  ASSIGNED: 'green',
+  REASSIGNED: 'amber',
 };
 
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,8 +35,10 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
   const timeline = useLoad(() => api<TimelineItem[]>(`/leads/${id}/timeline`), [id]);
   const brands = useLoad(() => api<Brand[]>('/brands'));
   const [editing, setEditing] = useState(false);
+  const assignments = useLoad(() => api<LeadAssignmentRow[]>(`/leads/${id}/assignments`), [id]);
+  const [assigning, setAssigning] = useState(false);
   const refresh = async () => {
-    await Promise.all([lead.reload(), timeline.reload()]);
+    await Promise.all([lead.reload(), timeline.reload(), assignments.reload()]);
   };
   const l = lead.data;
   if (!l) return <ErrorText error={lead.error} />;
@@ -106,6 +111,48 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6">
+          <Card title="Owner">
+            <p className="text-sm">
+              {l.owner ? (
+                <span className="font-medium">{l.owner.name}</span>
+              ) : (
+                <span className="text-amber-700">Unassigned — waiting in the allocation queue</span>
+              )}
+            </p>
+            {l.status !== 'MERGED' && (l.owner ? can('lead.reassign') : can('lead.assign')) && (
+              <div className="mt-3">
+                {assigning ? (
+                  <AssignLead
+                    leadId={l.id}
+                    brandId={l.brandId}
+                    currentOwnerId={l.ownerId}
+                    onDone={async () => {
+                      setAssigning(false);
+                      await refresh();
+                    }}
+                  />
+                ) : (
+                  <Button variant="secondary" onClick={() => setAssigning(true)}>
+                    {l.owner ? 'Reassign' : 'Assign'}
+                  </Button>
+                )}
+              </div>
+            )}
+            {!!assignments.data?.length && (
+              <ol className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-xs text-slate-600">
+                {assignments.data.map((r) => (
+                  <li key={r.id}>
+                    <span className="font-medium text-slate-800">{r.toName ?? 'Unknown'}</span>
+                    {r.fromName ? ` (from ${r.fromName})` : ''} ·{' '}
+                    {r.type.replace(/_/g, ' ').toLowerCase()} · {fmt(r.assignedAt)}
+                    {r.byName ? ` · by ${r.byName}` : ''}
+                    {r.overCapacity ? ' · over capacity' : ''}
+                    {r.reason ? <span className="block text-slate-500">“{r.reason}”</span> : null}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Card>
           <Card title="Contact">
             <dl className="space-y-2 text-sm">
               <div>

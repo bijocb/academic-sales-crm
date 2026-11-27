@@ -35,6 +35,7 @@ export const PERMISSIONS = {
   'lead.merge': { phase: 5, description: 'Merge duplicate leads' },
   'lead.archive': { phase: 5, description: 'Archive leads' },
   'lead.assign': { phase: 6, description: 'Manually assign leads' },
+  'lead.receive': { phase: 6, description: 'Can be allocated new leads' },
   'lead.reassign': { phase: 6, description: 'Reassign leads' },
   'allocation.manage': { phase: 6, description: 'Manage allocation rules' },
   'task.manage': { phase: 7, description: 'Manage tasks of others in scope' },
@@ -81,7 +82,8 @@ export const SYSTEM_ROLE_TEMPLATES: Record<
   ORG_ADMIN: {
     name: 'Organization Admin',
     description: 'Manage brands, branches, users and policies across the organization',
-    permissions: ALL,
+    // Everything except being a lead recipient (admins are not in the sales pool).
+    permissions: ALL.filter((p) => p !== 'lead.receive'),
   },
   BRAND_MANAGER: {
     name: 'Brand Manager',
@@ -173,6 +175,7 @@ export const SYSTEM_ROLE_TEMPLATES: Record<
       'lead.read_own',
       'lead.create',
       'lead.edit',
+      'lead.receive',
       'pipeline.transition',
       'pii.view_full',
     ],
