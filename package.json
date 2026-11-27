@@ -15,7 +15,7 @@
     "test:e2e": "playwright test --trace off",
     "dev:api": "pnpm --filter @crm/contracts build && pnpm --filter @crm/api dev",
     "dev:web": "pnpm --filter @crm/web dev",
-    "db:migrate": "pnpm --filter @crm/api db:migrate",
+    "db:migrate": "pnpm --filter @crm/contracts build && pnpm --filter @crm/api db:migrate",
     "db:migrate:dev": "pnpm --filter @crm/api db:migrate:dev",
     "db:seed": "pnpm --filter @crm/api db:seed",
     "db:seed:demo": "pnpm --filter @crm/api db:seed:demo"
