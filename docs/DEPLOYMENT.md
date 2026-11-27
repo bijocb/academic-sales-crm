@@ -18,8 +18,14 @@ role, creates the platform admin (`SEED_PLATFORM_ADMIN_*`) and — because `ALLO
 
 ## Limitations of this setup
 
-- Vercel functions run per request; the SLA timers and workers of Phase 7 need an always-on
-  process (Railway / container host) with Redis. Plan to move the API there in Phase 7.
+- Vercel functions run per request, so background jobs (SLA checkpoints, task reminders, queue drain) run when
+  `/api/v1/internal/tick` is called with `Authorization: Bearer $CRON_SECRET`:
+  - `.github/workflows/tick.yml` calls it every 5 minutes. It needs the repository secret `CRON_SECRET`
+    (GitHub → Settings → Secrets and variables → Actions) with the same value as `CRON_SECRET` on the Vercel API
+    project. Without it the workflow skips. GitHub may start scheduled runs late.
+  - `apps/api/vercel.json` adds a daily Vercel Cron as a backstop (Hobby plans allow one run per day; on Pro change
+    the schedule to `* * * * *`).
+  - On any long-lived host (`pnpm start`, Docker) the in-process worker runs every 15 s (`WORKER_MODE=interval`).
 - Login rate limiting is per function instance (in memory) until Redis is added.
 
 ## Container alternative

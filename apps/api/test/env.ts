@@ -13,4 +13,5 @@ export const TEST_ENV = {
   JWT_ACCESS_SECRET: 'test-secret-test-secret-test-secret-0123456789',
   WEB_ORIGIN: 'http://localhost:3000',
   SMTP_URL: '',
+  CRON_SECRET: 'test-cron-secret-test-cron-secret-0123',
 } as const;

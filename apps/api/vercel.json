@@ -3,6 +3,21 @@
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile --filter @crm/api...",
   "buildCommand": "cd ../.. && pnpm --filter @crm/contracts build && cd apps/api && pnpm vercel-build",
   "outputDirectory": "public",
-  "functions": { "api/index.js": { "maxDuration": 30 } },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/v1/internal/tick",
+      "schedule": "17 3 * * *"
+    }
+  ]
 }

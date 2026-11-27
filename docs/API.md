@@ -95,3 +95,18 @@ Errors: `{ "error": { "code", "message", "details?", "correlationId" } }`. Out-o
 | `GET /notifications?unread`, `POST /notifications/read`, `POST /notifications/:id/read`           | signed in                                              | own notifications only                                                 |
 
 view\* = any of `lead.assign`, `lead.reassign`, `allocation.manage` in the brand (otherwise 404).
+
+## Phase 7 — tasks and SLA
+
+| Method & path                                                     | Permission                                                      | Notes                                                                           |
+| ----------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `GET /tasks?view=mine\|team&status&due&dueBefore&ownerId&brandId` | own tasks; `view=team` needs `task.manage` (brand or own teams) | sorted by due time; `overdue` flag, `allowedOutcomes`                           |
+| `GET /leads/:id/tasks`, `POST /leads/:id/tasks`                   | lead visible; create needs `lead.edit` (own) or `task.manage`   | `{ type, dueAt, title?, priority?, notes?, ownerId? }`                          |
+| `POST /tasks/:id/complete`                                        | task owner or `task.manage` over it (else 404)                  | `{ outcome, notes?, nextTask? }`; 400 `INVALID_OUTCOME`, `NEXT_ACTION_REQUIRED` |
+| `POST /tasks/:id/reschedule`                                      | same                                                            | `{ dueAt, reason? }`                                                            |
+| `POST /tasks/:id/cancel`                                          | same                                                            | `{ reason, nextTask? }`                                                         |
+| `POST /leads/:id/hold`, `POST /leads/:id/resume`                  | `lead.edit` in the lead's brand                                 | hold `{ reason, until? }` pauses the SLA; resume `{ nextTask? }`                |
+| `GET /leads/:id/sla`                                              | lead visible                                                    | `{ current: instance + elapsed (working, calendar) + events \| null }`          |
+| `GET /sla/overview?brandId`                                       | `task.manage` or `allocation.manage` in the brand               | active counts, last 30 days, priority queue, watch list                         |
+| `GET /ops/jobs?status`, `POST /ops/jobs/:id/retry`                | `settings.manage` or `allocation.manage`                        | failed (DEAD) jobs and requeue                                                  |
+| `GET\|POST /internal/tick`                                        | `Authorization: Bearer $CRON_SECRET`                            | runs due jobs and drains queues; for schedulers only                            |

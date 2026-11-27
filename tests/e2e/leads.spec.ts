@@ -15,6 +15,7 @@ test('brand manager captures leads manually and by CSV import; bad rows reach th
 
   // Seeded demo leads with their original source
   await page.getByRole('link', { name: 'Leads', exact: true }).click();
+  await page.getByPlaceholder('Name, phone, email or lead no.').fill('[DEMO]');
   await expect(page.getByRole('cell', { name: '[DEMO] Ananya Menon' })).toBeVisible();
   await expect(page.getByRole('cell', { name: '[DEMO] Omar Haddad' })).toHaveCount(0); // other brand
 

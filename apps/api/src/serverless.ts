@@ -11,6 +11,8 @@ let handler: Promise<Handler> | undefined;
 export default async function serverless(req: IncomingMessage, res: ServerResponse): Promise<void> {
   handler ??= (async () => {
     resolveDatabaseEnv();
+    // Functions are frozen between requests: jobs run only via /internal/tick.
+    process.env.WORKER_MODE = 'off';
     const app = await createApp(loadConfig());
     await app.init();
     return app.getHttpAdapter().getInstance() as Handler;

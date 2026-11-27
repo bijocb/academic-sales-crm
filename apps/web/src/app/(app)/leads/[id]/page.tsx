@@ -17,6 +17,7 @@ import { CHANNEL_LABEL, fmtDateTime as fmt, leadStatusTone } from '@/lib/lead-fo
 import { useSession } from '@/lib/session';
 import type { Brand, Course, LeadAssignmentRow, LeadDetail, TimelineItem } from '@/lib/types';
 import { AssignLead } from '@/components/assign-lead';
+import { LeadWork } from '@/components/task-panel';
 
 const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
   ENQUIRY: 'blue',
@@ -26,6 +27,11 @@ const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
   PERSON_MERGED: 'green',
   ASSIGNED: 'green',
   REASSIGNED: 'amber',
+  TASK_COMPLETED: 'green',
+  TASK_CREATED: 'blue',
+  SLA_BREACHED: 'amber',
+  SLA_ESCALATED: 'amber',
+  LEAD_ON_HOLD: 'amber',
 };
 
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -232,7 +238,16 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
           )}
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="space-y-6 lg:col-span-2">
+          {l.status !== 'MERGED' && (
+            <LeadWork
+              key={`${l.ownerId ?? 'none'}:${l.status}`}
+              leadId={l.id}
+              leadStatus={l.status}
+              canEdit={l.canEdit}
+              onChanged={() => void Promise.all([lead.reload(), timeline.reload()])}
+            />
+          )}
           <Card
             title={`Timeline · ${l.enquiries.length} enquir${l.enquiries.length === 1 ? 'y' : 'ies'}`}
           >

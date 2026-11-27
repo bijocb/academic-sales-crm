@@ -44,15 +44,15 @@ Changes from SRS Appendix A: the three separate worker apps become one worker en
 
 ## 3. Runtime
 
-| Component             | Role                                                                                                                                       |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| PostgreSQL 16         | Single source of truth. History tables append-only.                                                                                        |
-| Redis 7 + BullMQ      | Delayed jobs (SLA checkpoints), queues (allocation, notifications, integrations), dead-letter queues.                                      |
-| Outbox                | Domain change + `outbox_events` row written in one transaction; relay pushes to BullMQ. No lost events, no events for rolled-back changes. |
-| Webhooks              | Store raw payload in `webhook_events` with unique `(provider, external_event_id)` → idempotent; process asynchronously.                    |
-| WebSockets            | Live notifications and dashboard counters.                                                                                                 |
-| S3-compatible storage | Student documents, imports; expiring signed URLs.                                                                                          |
-| Clock                 | Injected `Clock` service everywhere; tests use a controllable clock (Phase 7 exit gate).                                                   |
+| Component             | Role                                                                                                                                                                                                             |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PostgreSQL 16         | Single source of truth. History tables append-only.                                                                                                                                                              |
+| Job queue             | PostgreSQL `jobs` table (A-033): deterministic keys, SKIP LOCKED claiming, retries with backoff, DEAD letters. Run by the in-process worker or `/internal/tick`. Redis is optional (rate limits, later caching). |
+| Outbox                | Domain change + `outbox_events` row written in one transaction; relay pushes to BullMQ. No lost events, no events for rolled-back changes.                                                                       |
+| Webhooks              | Store raw payload in `webhook_events` with unique `(provider, external_event_id)` → idempotent; process asynchronously.                                                                                          |
+| WebSockets            | Live notifications and dashboard counters.                                                                                                                                                                       |
+| S3-compatible storage | Student documents, imports; expiring signed URLs.                                                                                                                                                                |
+| Clock                 | Injected `Clock` service everywhere; tests use a controllable clock (Phase 7 exit gate).                                                                                                                         |
 
 ## 4. Core data model (key decisions only — full ERD in Phase 2/4)
 
@@ -66,13 +66,17 @@ Changes from SRS Appendix A: the three separate worker apps become one worker en
 - Admissions: status DRAFT → CONFIRMED (first verified payment, D-006) → CANCELLED_REFUNDED (full refund, A-007b); also DEFERRED / CANCELLED.
 - Refunds: `refunds` (request → approved → paid / rejected), linked to original payment(s); never mutate payments (D-007).
 
-## 5. SLA engine
+## 5. SLA engine (implemented in Phase 7)
 
-1. Lead assigned → create first-call task + `sla_instance` + checkpoint plan (5/15/30/60 from the brand's SLA rule).
-2. For each checkpoint compute due time on the chosen basis using the brand's business calendar (working hours, weekly off-days, holidays, time zone). Schedule a BullMQ delayed job with a deterministic job ID (`sla:{instanceId}:{checkpoint}`) → no duplicates.
-3. Job runs → reload state in a transaction; if already resolved/paused/cancelled, do nothing; else perform action (remind, alert TL, reassign, escalate) and record `escalation_events`.
-4. Safety sweep every minute: find checkpoints past due that have no executed record and run them (covers lost Redis jobs).
-5. Qualifying activity (A-011) resolves the instance and records both elapsed clocks.
+1. First assignment → in the same transaction: `sla_instances` row (policy snapshot), the single first-call task
+   (partial unique index), and one job per checkpoint plus the deadline (`sla:{id}:g{generation}:cp{n}`).
+2. Due times use the brand calendar (working hours, holidays, time zone) or calendar minutes, per checkpoint (A-003a).
+3. A job re-reads the instance under a row lock; if the generation changed (pause/resume) or it is resolved, paused
+   or cancelled, it does nothing. Actions: remind owner, alert team leaders, reassign (allocation engine, previous
+   owners excluded, at most `max_reassign_attempts`), escalate to managers + priority queue. Every trigger is an
+   append-only `sla_events` row.
+4. Hold pauses (consumed minutes saved, generation bumped, pending jobs cancelled); resume schedules what is left.
+5. A call task outcome resolves the instance and stores both clocks (D-003, A-011, A-032).
 
 ## 6. Allocation
 

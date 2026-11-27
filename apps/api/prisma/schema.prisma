@@ -1042,3 +1042,163 @@ model Notification {
   @@index([organizationId, userId, readAt, createdAt])
   @@map("notifications")
 }
+
+// ---------------------------------------------------------------- Phase 7
+
+enum TaskType {
+  FIRST_CALL
+  CALL_BACK
+  WHATSAPP
+  EMAIL
+  COUNSELLING
+  DOCUMENT_COLLECTION
+  PAYMENT_FOLLOW_UP
+  ADMISSION_CONFIRMATION
+  CUSTOM
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskOutcome {
+  CONNECTED
+  NO_ANSWER
+  BUSY
+  SWITCHED_OFF
+  WRONG_NUMBER
+  CALL_BACK_REQUESTED
+  MESSAGE_SENT
+  DONE
+}
+
+enum SlaState {
+  PENDING
+  AT_RISK
+  BREACHED
+  PAUSED
+  RESOLVED
+  CANCELLED
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  DONE
+  DEAD
+  CANCELLED
+}
+
+/// Follow-up work on a lead (FR-008). At most one is_initial task per lead (partial unique index).
+model Task {
+  id              String       @id @default(uuid()) @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  brandId         String       @map("brand_id") @db.Uuid
+  leadId          String       @map("lead_id") @db.Uuid
+  ownerId         String       @map("owner_id") @db.Uuid
+  type            TaskType
+  title           String
+  priority        TaskPriority @default(NORMAL)
+  status          TaskStatus   @default(OPEN)
+  channel         String?
+  dueAt           DateTime     @map("due_at") @db.Timestamptz(3)
+  isInitial       Boolean      @default(false) @map("is_initial")
+  outcome         TaskOutcome?
+  notes           String?
+  cancelReason    String?      @map("cancel_reason")
+  rescheduleCount Int          @default(0) @map("reschedule_count")
+  createdById     String?      @map("created_by_id") @db.Uuid
+  createdAt       DateTime     @map("created_at") @db.Timestamptz(3)
+  completedAt     DateTime?    @map("completed_at") @db.Timestamptz(3)
+  completedById   String?      @map("completed_by_id") @db.Uuid
+  cancelledAt     DateTime?    @map("cancelled_at") @db.Timestamptz(3)
+  cancelledById   String?      @map("cancelled_by_id") @db.Uuid
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([organizationId, ownerId, status, dueAt])
+  @@index([organizationId, leadId, status])
+  @@index([organizationId, brandId, status, dueAt])
+  @@map("tasks")
+}
+
+/// One SLA clock (first response) per lead at a time; checkpoints are a snapshot of the brand policy.
+model SlaInstance {
+  id                      String    @id @default(uuid()) @db.Uuid
+  organizationId          String    @map("organization_id") @db.Uuid
+  brandId                 String    @map("brand_id") @db.Uuid
+  leadId                  String    @map("lead_id") @db.Uuid
+  kind                    String    @default("FIRST_RESPONSE")
+  state                   SlaState  @default(PENDING)
+  ownerId                 String    @map("owner_id") @db.Uuid
+  targetMinutes           Int       @map("target_minutes")
+  basis                   TimeBasis
+  checkpoints             Json
+  firedPositions          Int[]     @default([]) @map("fired_positions")
+  generation              Int       @default(0)
+  startedAt               DateTime  @map("started_at") @db.Timestamptz(3)
+  segmentStartedAt        DateTime  @map("segment_started_at") @db.Timestamptz(3)
+  consumedCalendarMinutes Int       @default(0) @map("consumed_calendar_minutes")
+  consumedWorkingMinutes  Int       @default(0) @map("consumed_working_minutes")
+  dueAt                   DateTime? @map("due_at") @db.Timestamptz(3)
+  pausedAt                DateTime? @map("paused_at") @db.Timestamptz(3)
+  breachedAt              DateTime? @map("breached_at") @db.Timestamptz(3)
+  escalatedAt             DateTime? @map("escalated_at") @db.Timestamptz(3)
+  resolvedAt              DateTime? @map("resolved_at") @db.Timestamptz(3)
+  resolution              String?
+  resolvedById            String?   @map("resolved_by_id") @db.Uuid
+  calendarMinutes         Int?      @map("calendar_minutes")
+  workingMinutes          Int?      @map("working_minutes")
+  cancelledAt             DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason            String?   @map("cancel_reason")
+  updatedAt               DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([organizationId, brandId, state])
+  @@index([organizationId, leadId])
+  @@map("sla_instances")
+}
+
+/// Append-only: every SLA trigger, notification, failure and resolution.
+model SlaEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  slaInstanceId  String   @map("sla_instance_id") @db.Uuid
+  leadId         String   @map("lead_id") @db.Uuid
+  type           String
+  position       Int?
+  data           Json?
+  occurredAt     DateTime @map("occurred_at") @db.Timestamptz(3)
+
+  @@index([organizationId, slaInstanceId, occurredAt])
+  @@map("sla_events")
+}
+
+/// Durable background jobs (PostgreSQL queue). `key` is deterministic so enqueueing is idempotent.
+model Job {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  type           String
+  key            String    @unique
+  payload        Json
+  status         JobStatus @default(PENDING)
+  runAt          DateTime  @map("run_at") @db.Timestamptz(3)
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(5) @map("max_attempts")
+  lastError      String?   @map("last_error")
+  lockedAt       DateTime? @map("locked_at") @db.Timestamptz(3)
+  lockedBy       String?   @map("locked_by")
+  finishedAt     DateTime? @map("finished_at") @db.Timestamptz(3)
+  createdAt      DateTime  @map("created_at") @db.Timestamptz(3)
+
+  @@index([status, runAt])
+  @@index([organizationId, status])
+  @@map("jobs")
+}

@@ -44,6 +44,14 @@ import { AllocationController } from './allocation/allocation.controller';
 import { AllocationService } from './allocation/allocation.service';
 import { AllocationAdminService } from './allocation/allocation-admin.service';
 import { NotificationsService } from './allocation/notifications.service';
+import { JobsService } from './jobs/jobs.service';
+import { WorkerService } from './jobs/worker.service';
+import { InternalController } from './jobs/internal.controller';
+import { SlaClockService } from './work/sla-clock.service';
+import { TaskCoreService } from './work/task-core.service';
+import { SlaHandlersService } from './work/sla-handlers.service';
+import { WorkService } from './work/work.service';
+import { WorkController } from './work/work.controller';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -94,6 +102,8 @@ export class AppModule implements NestModule {
         IntakeController,
         LeadsController,
         AllocationController,
+        WorkController,
+        InternalController,
       ],
       providers: [
         { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -116,6 +126,12 @@ export class AppModule implements NestModule {
         AllocationService,
         AllocationAdminService,
         NotificationsService,
+        JobsService,
+        WorkerService,
+        SlaClockService,
+        TaskCoreService,
+        SlaHandlersService,
+        WorkService,
       ],
     };
   }

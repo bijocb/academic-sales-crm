@@ -1,0 +1,33 @@
+# Background scheduler for the Vercel-hosted API (functions cannot run timers).
+# Calls the protected tick endpoint, which runs due SLA/task jobs and drains allocation queues.
+# Needs the repository secret CRON_SECRET (same value as the API project's CRON_SECRET on Vercel).
+# GitHub may delay scheduled runs; for minute-accurate reminders use Vercel Pro cron or an always-on worker (O-12).
+name: Scheduler tick
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: scheduler-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call /internal/tick
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TICK_URL: ${{ vars.API_TICK_URL || 'https://academic-sales-crm-api.vercel.app/api/v1/internal/tick' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::notice::CRON_SECRET is not set; skipping (see docs/DEPLOYMENT.md)."
+            exit 0
+          fi
+          curl -fsS --max-time 60 --retry 2 -X POST -H "Authorization: Bearer $CRON_SECRET" "$TICK_URL"
+          echo

@@ -113,3 +113,12 @@ erDiagram
 | `allocation_runs`                               | **Append-only**: every attempt with outcome, candidates, exclusion reasons, rule and rule version               |
 | `lead_assignments`                              | **Append-only** ownership history: from/to, type (AUTO, MANUAL, REASSIGN_AUTO, RECOVERY), reason, over capacity |
 | `notifications`                                 | In-app notifications, unique `(user_id, dedup_key)`                                                             |
+
+## Phase 7 additions
+
+| Table           | Notes                                                                                                                             |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `tasks`         | Owner, type, priority, due, status OPEN/COMPLETED/CANCELLED (overdue = open past due), outcome, notes; one `is_initial` per lead  |
+| `sla_instances` | First-response clock per lead: policy snapshot, state, fired checkpoints, generation, consumed minutes, both clocks on resolution |
+| `sla_events`    | **Append-only**: started, checkpoint, reminder/alert sent, reassigned/failed, breached, escalated, paused/resumed, resolved       |
+| `jobs`          | Background job queue: unique key, status PENDING/RUNNING/DONE/DEAD/CANCELLED, attempts, last error                                |

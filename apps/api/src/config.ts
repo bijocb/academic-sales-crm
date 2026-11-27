@@ -34,6 +34,18 @@ const EnvSchema = z
       .enum(['true', 'false'])
       .optional()
       .transform((v) => v === 'true'),
+    /** Shared secret for the scheduler calling /internal/tick (Vercel Cron / GitHub Actions). */
+    CRON_SECRET: z
+      .string()
+      .optional()
+      .transform((v) => (v ? v : undefined))
+      .refine(
+        (v) => v === undefined || v.length >= 32,
+        'CRON_SECRET must be at least 32 characters',
+      ),
+    /** `interval`: run background jobs in-process (long-lived server). `off`: only via /internal/tick. */
+    WORKER_MODE: z.enum(['interval', 'off']).optional(),
+    WORKER_INTERVAL_MS: z.coerce.number().int().min(1000).max(600_000).default(15_000),
     ENABLE_API_DOCS: z
       .enum(['true', 'false'])
       .optional()

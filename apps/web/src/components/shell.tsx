@@ -15,6 +15,16 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: '/', label: 'Dashboard', show: (s) => !s.me.user.isPlatformAdmin },
   { href: '/leads', label: 'Leads', show: (s) => s.can('lead.read') || s.can('lead.read_own') },
+  {
+    href: '/tasks',
+    label: 'My tasks',
+    show: (s) => !s.me.user.isPlatformAdmin && (s.can('lead.read') || s.can('lead.read_own')),
+  },
+  {
+    href: '/sla',
+    label: 'SLA monitor',
+    show: (s) => s.can('task.manage') || s.can('allocation.manage'),
+  },
   { href: '/leads/import', label: 'Import leads', show: (s) => s.can('lead.import') },
   { href: '/leads/exceptions', label: 'Rejected leads', show: (s) => s.can('lead.import') },
   { href: '/leads/duplicates', label: 'Possible duplicates', show: (s) => s.can('lead.merge') },

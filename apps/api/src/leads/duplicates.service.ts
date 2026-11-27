@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Lead, Person } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
@@ -9,6 +9,7 @@ import { Db, Tx } from '../db/db.service';
 import { DuplicateDetector } from './duplicate-detector';
 import { nameKey } from './duplicate-rules';
 import { maskEmail, maskPhone } from './normalize';
+import { TaskCoreService } from '../work/task-core.service';
 
 export type Side = 'A' | 'B';
 export interface MergeInput {
@@ -37,6 +38,7 @@ export class DuplicatesService {
     private readonly audit: AuditService,
     private readonly clock: Clock,
     private readonly detector: DuplicateDetector,
+    @Optional() private readonly taskCore?: TaskCoreService,
   ) {}
 
   /** A user may act on a pair only with lead.merge over every brand either person has leads in. */
@@ -208,6 +210,13 @@ export class DuplicatesService {
           where: { id: fold.id },
           data: { status: 'MERGED', mergedIntoLeadId: keep.id, personId: survivor.id },
         });
+        await this.taskCore?.closeLead(
+          tx,
+          fold.id,
+          `Merged into ${keep.leadNumber}`,
+          p.userId,
+          now,
+        );
         await tx.lead.update({
           where: { id: keep.id },
           data: {

@@ -159,7 +159,8 @@ export class LeadsService {
     return ids;
   }
 
-  private async visibleLead(tx: Tx, p: OrgPrincipal, id: string) {
+  /** 404 unless the caller may see the lead. */
+  async visibleLead(tx: Tx, p: OrgPrincipal, id: string) {
     const vis = await this.visibility(tx, p);
     const lead = vis
       ? await tx.lead.findFirst({
@@ -237,7 +238,7 @@ export class LeadsService {
     });
   }
 
-  private canEdit(p: OrgPrincipal, brandId: string): boolean {
+  canEdit(p: OrgPrincipal, brandId: string): boolean {
     const v = p.authz.visibleBrandIds('lead.edit');
     return v.all || v.brandIds.includes(brandId);
   }

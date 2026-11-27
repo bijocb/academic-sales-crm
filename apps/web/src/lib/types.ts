@@ -304,3 +304,74 @@ export interface LeadAssignmentRow {
   fromName: string | null;
   byName: string | null;
 }
+
+export interface TaskRow {
+  id: string;
+  leadId: string;
+  brandId: string;
+  ownerId: string;
+  ownerName: string | null;
+  type: string;
+  title: string;
+  priority: string;
+  status: 'OPEN' | 'COMPLETED' | 'CANCELLED';
+  dueAt: string;
+  isInitial: boolean;
+  outcome: string | null;
+  notes: string | null;
+  cancelReason: string | null;
+  rescheduleCount: number;
+  completedAt: string | null;
+  overdue: boolean;
+  allowedOutcomes: string[];
+  lead: { id: string; leadNumber: string; status: string; person: { fullName: string } } | null;
+}
+
+export interface SlaEventRow {
+  id: string;
+  type: string;
+  position: number | null;
+  data: Record<string, unknown> | null;
+  occurredAt: string;
+}
+
+export interface LeadSla {
+  id: string;
+  state: 'PENDING' | 'AT_RISK' | 'BREACHED' | 'PAUSED' | 'RESOLVED' | 'CANCELLED';
+  targetMinutes: number;
+  basis: 'WORKING' | 'CALENDAR';
+  startedAt: string;
+  dueAt: string | null;
+  breachedAt: string | null;
+  escalatedAt: string | null;
+  resolvedAt: string | null;
+  resolution: string | null;
+  elapsed: { calendar: number | null; working: number | null };
+  events: SlaEventRow[];
+}
+
+export interface SlaWatchRow {
+  id: string;
+  leadId: string;
+  leadNumber?: string;
+  leadName?: string;
+  ownerName: string | null;
+  state: string;
+  dueAt: string | null;
+  escalatedAt: string | null;
+  breachedAt: string | null;
+  elapsed: { calendar: number; working: number };
+}
+
+export interface SlaOverview {
+  active: Record<string, number>;
+  last30Days: {
+    resolved: number;
+    withinTarget: number;
+    connected: number;
+    avgWorkingMinutes: number | null;
+    avgCalendarMinutes: number | null;
+  };
+  priorityQueue: SlaWatchRow[];
+  watchList: SlaWatchRow[];
+}

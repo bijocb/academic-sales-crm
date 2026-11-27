@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { AllocationOutcome, AllocationStrategy } from '@prisma/client';
 import { DateTime } from 'luxon';
@@ -11,6 +11,7 @@ import { isWorkingTime } from '../settings/business-calendar';
 import { SettingsService } from '../settings/settings.service';
 import { CandidateInput, decide, matchRule } from './rank';
 import { NotificationsService } from './notifications.service';
+import { TaskCoreService } from '../work/task-core.service';
 
 const ACTIVE = ['OPEN', 'ON_HOLD', 'IN_RECOVERY'] as const;
 
@@ -20,6 +21,8 @@ export interface AllocateOptions {
   exclude?: string[];
   ignoreWorkingHours?: boolean;
   actorUserId?: string | null;
+  /** SLA reassignment: proceed only while this user still owns the lead; previous owners are excluded. */
+  reassignFrom?: string;
 }
 
 export interface AllocateResult {
@@ -39,6 +42,7 @@ export class AllocationService {
     private readonly audit: AuditService,
     private readonly settings: SettingsService,
     private readonly notifications: NotificationsService,
+    @Optional() private readonly taskCore?: TaskCoreService,
   ) {}
 
   // ------------------------------------------------------------ engine
@@ -51,8 +55,10 @@ export class AllocationService {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'alloc:' + leadId}))`;
       const lead = await tx.lead.findUnique({ where: { id: leadId }, include: { person: true } });
       if (!lead) throw notFound('Lead');
-      if (lead.ownerId || !(ACTIVE as readonly string[]).includes(lead.status))
-        return { outcome: 'ALREADY_ASSIGNED' as const, ownerId: lead.ownerId };
+      const blocked = opts.reassignFrom
+        ? lead.ownerId !== opts.reassignFrom || lead.status !== 'OPEN'
+        : !!lead.ownerId || !(ACTIVE as readonly string[]).includes(lead.status);
+      if (blocked) return { outcome: 'ALREADY_ASSIGNED' as const, ownerId: lead.ownerId };
       const settings = await tx.allocationSettings.findUnique({ where: { brandId: lead.brandId } });
       if (!settings || !settings.enabled) return { outcome: 'DISABLED' as const };
       const now = this.clock.now();
@@ -105,6 +111,14 @@ export class AllocationService {
       const strategy: AllocationStrategy = rule?.strategy ?? settings.defaultStrategy;
       const candidates = await this.candidates(tx, lead.brandId, now);
       const cooldownExclusions = await this.recentOwners(tx, lead, now);
+      if (opts.reassignFrom) {
+        // A-010: the current and every previous owner of this lead are excluded (no ping-pong).
+        const prev = await tx.leadAssignment.findMany({
+          where: { leadId },
+          select: { toUserId: true },
+        });
+        cooldownExclusions.push(opts.reassignFrom, ...prev.map((x) => x.toUserId));
+      }
       const decision = decide(candidates, {
         strategy,
         leadLanguage: lead.person.language,
@@ -126,7 +140,8 @@ export class AllocationService {
       );
 
       if (!decision.chosen) {
-        await this.notifyManagers(tx, lead, now);
+        // During SLA reassignment the lead keeps its owner; the SLA handler escalates instead.
+        if (!opts.reassignFrom) await this.notifyManagers(tx, lead, now);
         return { outcome, runId: run.id };
       }
       await this.assign(tx, {
@@ -459,6 +474,15 @@ export class AllocationService {
       before: { ownerId: lead.ownerId },
       after: { ownerId: a.toUserId, type: a.type, attemptNo, overCapacity: a.overCapacity },
       reason: a.reason,
+    });
+    // Phase 7: first-call task, SLA clock, open tasks follow the lead.
+    await this.taskCore?.onAssigned(tx, {
+      lead,
+      fromUserId: lead.ownerId,
+      toUserId: a.toUserId,
+      type: a.type,
+      actorUserId: a.actorUserId,
+      now,
     });
   }
 
