@@ -9,6 +9,10 @@ export default defineConfig({
   timeout: 30_000,
   retries: process.env.CI ? 1 : 0,
   use: { baseURL: 'http://localhost:3000', ...devices['Desktop Chrome'] },
+  projects: [
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    { name: 'e2e', testIgnore: /auth\.setup\.ts/, dependencies: ['setup'] },
+  ],
   webServer: [
     {
       command: 'pnpm --filter @crm/api start',

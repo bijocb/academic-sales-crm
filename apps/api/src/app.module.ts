@@ -60,6 +60,8 @@ import { buildProviderRegistry, ProviderRegistry } from './engagement/providers'
 import { PipelineController } from './pipeline/pipeline.controller';
 import { PipelineService } from './pipeline/pipeline.service';
 import { QuotationsService } from './pipeline/quotations.service';
+import { RecoveryController } from './recovery/recovery.controller';
+import { RecoveryService } from './recovery/recovery.service';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -113,6 +115,7 @@ export class AppModule implements NestModule {
         WorkController,
         EngagementController,
         PipelineController,
+        RecoveryController,
         InternalController,
       ],
       providers: [
@@ -147,6 +150,7 @@ export class AppModule implements NestModule {
         TemplatesService,
         PipelineService,
         QuotationsService,
+        RecoveryService,
         {
           provide: ProviderRegistry,
           useFactory: (c: AppConfig) => buildProviderRegistry(c.NODE_ENV),

@@ -10,3 +10,4 @@ playwright-report/
 test-results/
 .turbo/
 next-env.d.ts
+tests/e2e/.auth/

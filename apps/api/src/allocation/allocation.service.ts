@@ -16,7 +16,7 @@ import { TaskCoreService } from '../work/task-core.service';
 const ACTIVE = ['OPEN', 'ON_HOLD', 'IN_RECOVERY'] as const;
 
 export interface AllocateOptions {
-  trigger: 'LEAD_CREATED' | 'QUEUE_DRAIN' | 'MANUAL_RETRY' | 'SEED' | 'SLA_REASSIGN';
+  trigger: 'LEAD_CREATED' | 'QUEUE_DRAIN' | 'MANUAL_RETRY' | 'SEED' | 'SLA_REASSIGN' | 'RECOVERY';
   /** Users that must not receive this lead (e.g. previous owners during reassignment). */
   exclude?: string[];
   ignoreWorkingHours?: boolean;
@@ -55,9 +55,12 @@ export class AllocationService {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'alloc:' + leadId}))`;
       const lead = await tx.lead.findUnique({ where: { id: leadId }, include: { person: true } });
       if (!lead) throw notFound('Lead');
-      const blocked = opts.reassignFrom
-        ? lead.ownerId !== opts.reassignFrom || lead.status !== 'OPEN'
-        : !!lead.ownerId || !(ACTIVE as readonly string[]).includes(lead.status);
+      const blocked =
+        opts.trigger === 'RECOVERY'
+          ? lead.status !== 'IN_RECOVERY'
+          : opts.reassignFrom
+            ? lead.ownerId !== opts.reassignFrom || lead.status !== 'OPEN'
+            : !!lead.ownerId || !(ACTIVE as readonly string[]).includes(lead.status);
       if (blocked) return { outcome: 'ALREADY_ASSIGNED' as const, ownerId: lead.ownerId };
       const settings = await tx.allocationSettings.findUnique({ where: { brandId: lead.brandId } });
       if (!settings || !settings.enabled) return { outcome: 'DISABLED' as const };
@@ -111,13 +114,17 @@ export class AllocationService {
       const strategy: AllocationStrategy = rule?.strategy ?? settings.defaultStrategy;
       const candidates = await this.candidates(tx, lead.brandId, now);
       const cooldownExclusions = await this.recentOwners(tx, lead, now);
-      if (opts.reassignFrom) {
-        // A-010: the current and every previous owner of this lead are excluded (no ping-pong).
+      if (opts.reassignFrom || opts.trigger === 'RECOVERY') {
+        // A-010 / FR-012: the current and every previous owner of this lead are excluded (no ping-pong).
         const prev = await tx.leadAssignment.findMany({
           where: { leadId },
           select: { toUserId: true },
         });
-        cooldownExclusions.push(opts.reassignFrom, ...prev.map((x) => x.toUserId));
+        cooldownExclusions.push(
+          ...(opts.reassignFrom ? [opts.reassignFrom] : []),
+          ...(lead.ownerId ? [lead.ownerId] : []),
+          ...prev.map((x) => x.toUserId),
+        );
       }
       const decision = decide(candidates, {
         strategy,
@@ -141,13 +148,19 @@ export class AllocationService {
 
       if (!decision.chosen) {
         // During SLA reassignment the lead keeps its owner; the SLA handler escalates instead.
-        if (!opts.reassignFrom) await this.notifyManagers(tx, lead, now);
+        if (!opts.reassignFrom && opts.trigger !== 'RECOVERY')
+          await this.notifyManagers(tx, lead, now);
         return { outcome, runId: run.id };
       }
       await this.assign(tx, {
         lead,
         toUserId: decision.chosen,
-        type: opts.trigger === 'SLA_REASSIGN' ? 'REASSIGN_AUTO' : 'AUTO',
+        type:
+          opts.trigger === 'SLA_REASSIGN'
+            ? 'REASSIGN_AUTO'
+            : opts.trigger === 'RECOVERY'
+              ? 'RECOVERY'
+              : 'AUTO',
         reason: rule
           ? `Rule: ${rule.name}`
           : `Brand pool (${strategy.toLowerCase().replace('_', ' ')})`,
@@ -379,7 +392,7 @@ export class AllocationService {
         person: { fullName: string };
       };
       toUserId: string;
-      type: 'AUTO' | 'MANUAL' | 'REASSIGN_AUTO';
+      type: 'AUTO' | 'MANUAL' | 'REASSIGN_AUTO' | 'RECOVERY';
       reason: string;
       runId: string | null;
       ruleVersion: number | null;
@@ -391,6 +404,11 @@ export class AllocationService {
     const { lead, now } = a;
     const attemptNo = (await tx.leadAssignment.count({ where: { leadId: lead.id } })) + 1;
     await tx.lead.update({ where: { id: lead.id }, data: { ownerId: a.toUserId } });
+    // A live recovery case is always worked by the lead owner.
+    await tx.recoveryCase.updateMany({
+      where: { leadId: lead.id, status: 'ACTIVE' },
+      data: { ownerId: a.toUserId },
+    });
     const row = await tx.leadAssignment.create({
       data: {
         organizationId: lead.organizationId,

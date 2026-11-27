@@ -51,13 +51,18 @@ export class TaskCoreService {
       lead: LeadRef;
       fromUserId: string | null;
       toUserId: string;
-      type: 'AUTO' | 'MANUAL' | 'REASSIGN_AUTO';
+      type: 'AUTO' | 'MANUAL' | 'REASSIGN_AUTO' | 'RECOVERY';
       actorUserId: string | null;
       now: Date;
     },
   ): Promise<void> {
     const { lead, now } = a;
     if (a.fromUserId) await this.transferOpen(tx, lead, a.fromUserId, a.toUserId, now);
+    // Recovery re-engagement has no first-response clock or first-call task (FR-012).
+    if (a.type === 'RECOVERY') return;
+    const status = (await tx.lead.findUnique({ where: { id: lead.id }, select: { status: true } }))
+      ?.status;
+    if (status === 'IN_RECOVERY' || status === 'LOST') return;
     if (a.type === 'REASSIGN_AUTO') {
       const inst = await this.sla.active(tx, lead.id);
       if (inst) {

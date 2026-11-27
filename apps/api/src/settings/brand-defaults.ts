@@ -1,5 +1,11 @@
 import type { Prisma } from '@prisma/client';
-import { DEFAULT_PIPELINE, DEFAULT_SLA_POLICY, DEFAULT_WORKING_HOURS } from '@crm/contracts';
+import {
+  DEFAULT_LOSS_REASONS,
+  DEFAULT_PIPELINE,
+  DEFAULT_RECOVERY_POLICY,
+  DEFAULT_SLA_POLICY,
+  DEFAULT_WORKING_HOURS,
+} from '@crm/contracts';
 
 type Tx = Prisma.TransactionClient;
 
@@ -61,6 +67,23 @@ export async function ensureBrandDefaults(
       data: DEFAULT_LEAD_SOURCES.map((x) => ({ organizationId, brandId, ...x })),
     });
     created.push('lead_sources');
+  }
+  if ((await tx.lossReason.count({ where: { brandId } })) === 0) {
+    await tx.lossReason.createMany({
+      data: DEFAULT_LOSS_REASONS.map((r, i) => ({
+        organizationId,
+        brandId,
+        position: i + 1,
+        ...r,
+      })),
+    });
+    created.push('loss_reasons');
+  }
+  if (!(await tx.recoveryPolicy.findUnique({ where: { brandId } }))) {
+    await tx.recoveryPolicy.create({
+      data: { organizationId, brandId, ...DEFAULT_RECOVERY_POLICY },
+    });
+    created.push('recovery_policy');
   }
   return { created };
 }

@@ -1,13 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-// Uses the DEMO organization from `pnpm db:seed:demo` (development data only).
-const PASSWORD = process.env.DEMO_PASSWORD || 'DemoPass#2026';
+import { BRAND_MANAGER_STATE } from './session';
+
+// Signed in once as the demo brand manager (auth.setup.ts).
+test.use({ storageState: BRAND_MANAGER_STATE });
 
 test('brand manager adds a course and a batch, and previews SLA due times', async ({ page }) => {
-  await page.goto('/login');
-  await page.getByLabel('Email').fill('brand.india@demo.local');
-  await page.getByLabel('Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.goto('/');
   await expect(page.getByRole('heading', { name: /Welcome/ })).toBeVisible();
 
   await page.getByRole('link', { name: 'Courses & batches' }).click();

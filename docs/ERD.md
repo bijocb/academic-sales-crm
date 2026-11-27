@@ -142,3 +142,13 @@ erDiagram
 | `lead_qualifications`    | One per lead: qualification, eligibility, requirement, interest, preferred courses, intake, fee readiness, objections                                                      |
 | `quotations`             | Q-number per organization, course, batch, list fee − discount = total (minor units, CHECK), validity, OPEN/ACCEPTED/REJECTED/SUPERSEDED/EXPIRED; terms immutable (trigger) |
 | `saved_views`            | Per-user named filters for the leads list and pipeline board                                                                                                               |
+
+## Phase 10 additions
+
+| Table                 | Notes                                                                                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `loss_reasons`        | Per brand: code, label, recoverable, active, order (defaults back-filled)                                                                               |
+| `recovery_policies`   | Per brand: enabled, cooldown, max attempts, interval, owner mode, auto-close                                                                            |
+| `lead_status_history` | **Append-only**: every status change (lost, recovery, reopen, close, hold/resume) with reason and actor                                                 |
+| `recovery_cases`      | SCHEDULED → ACTIVE → RECOVERED / CLOSED / CANCELLED; loss reason and notes; owner follows the lead owner; one live case per lead (partial unique index) |
+| `recovery_attempts`   | **Append-only**: attempt number, channel, result, notes, alternative course offered, next date                                                          |

@@ -18,6 +18,7 @@ import { LeadsService } from '../leads/leads.service';
 import { MailService } from '../mail/mail.service';
 import { SlaClockService } from '../work/sla-clock.service';
 import { recordActivity } from './activity-writer';
+import { closeRecoveryOnOptOut } from '../recovery/recovery-hooks';
 import { ProviderError, ProviderRegistry } from './providers';
 
 const RANK: Record<MessageStatus, number> = {
@@ -138,10 +139,10 @@ export class EngagementService implements OnModuleInit {
     const now = this.clock.now();
     return this.db.tenant(p.organizationId, async (tx) => {
       const lead = await this.editableLead(tx, p, leadId);
-      if (!WORKABLE.includes(lead.status) && lead.status !== 'LOST')
-        throw badRequest('LEAD_NOT_ACTIVE', 'Messages can only be sent on active leads');
       if (lead.person.doNotContact)
         throw conflict('OPTED_OUT', 'This person asked not to be contacted');
+      if (!WORKABLE.includes(lead.status) && lead.status !== 'LOST')
+        throw badRequest('LEAD_NOT_ACTIVE', 'Messages can only be sent on active leads');
 
       const template = input.templateId
         ? await tx.messageTemplate.findFirst({
@@ -471,6 +472,7 @@ export class EngagementService implements OnModuleInit {
       where: { id: personId },
       data: { doNotContact, doNotContactAt: doNotContact ? now : null },
     });
+    if (doNotContact) await closeRecoveryOnOptOut(tx, personId, actorUserId, now);
     if (leadId)
       await tx.leadEvent.create({
         data: {

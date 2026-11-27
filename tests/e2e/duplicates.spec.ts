@@ -1,15 +1,15 @@
 import { expect, test } from '@playwright/test';
 
-const PASSWORD = process.env.DEMO_PASSWORD || 'DemoPass#2026';
+import { BRAND_MANAGER_STATE } from './session';
+
+// Signed in once as the demo brand manager (auth.setup.ts).
+test.use({ storageState: BRAND_MANAGER_STATE });
 
 test('brand manager reviews a suggested duplicate, merges it and sees the combined history', async ({
   page,
 }) => {
   const run = Date.now().toString().slice(-6);
-  await page.goto('/login');
-  await page.getByLabel('Email').fill('brand.india@demo.local');
-  await page.getByLabel('Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.goto('/');
   await expect(page.getByRole('heading', { name: /Welcome/ })).toBeVisible();
 
   // Two manual leads: same name (words swapped), phone with two swapped digits.

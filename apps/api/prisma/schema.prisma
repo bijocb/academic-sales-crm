@@ -1452,3 +1452,114 @@ model SavedView {
   @@unique([userId, page, name])
   @@map("saved_views")
 }
+
+// ---------------------------------------------------------------- Phase 10
+
+enum RecoveryOwnerMode {
+  DIFFERENT_EXECUTIVE
+  SAME_OWNER
+  QUEUE
+}
+
+enum RecoveryStatus {
+  SCHEDULED
+  ACTIVE
+  RECOVERED
+  CLOSED
+  CANCELLED
+}
+
+model LossReason {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  brandId        String   @map("brand_id") @db.Uuid
+  code           String
+  label          String
+  recoverable    Boolean  @default(true)
+  active         Boolean  @default(true)
+  position       Int
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([brandId, code])
+  @@map("loss_reasons")
+}
+
+model RecoveryPolicy {
+  id                  String            @id @default(uuid()) @db.Uuid
+  organizationId      String            @map("organization_id") @db.Uuid
+  brandId             String            @unique @map("brand_id") @db.Uuid
+  enabled             Boolean           @default(true)
+  cooldownDays        Int               @default(7) @map("cooldown_days")
+  maxAttempts         Int               @default(3) @map("max_attempts")
+  attemptIntervalDays Int               @default(3) @map("attempt_interval_days")
+  ownerMode           RecoveryOwnerMode @default(DIFFERENT_EXECUTIVE) @map("owner_mode")
+  autoCloseAfterMax   Boolean           @default(true) @map("auto_close_after_max")
+  updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("recovery_policies")
+}
+
+/// Append-only: every lead status change (lost, recovery, reopen, close, hold).
+model LeadStatusHistory {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  brandId        String   @map("brand_id") @db.Uuid
+  leadId         String   @map("lead_id") @db.Uuid
+  fromStatus     String   @map("from_status")
+  toStatus       String   @map("to_status")
+  reasonCode     String?  @map("reason_code")
+  notes          String?
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  occurredAt     DateTime @map("occurred_at") @db.Timestamptz(3)
+
+  @@index([organizationId, leadId, occurredAt])
+  @@index([organizationId, brandId, toStatus, occurredAt])
+  @@map("lead_status_history")
+}
+
+model RecoveryCase {
+  id              String         @id @default(uuid()) @db.Uuid
+  organizationId  String         @map("organization_id") @db.Uuid
+  brandId         String         @map("brand_id") @db.Uuid
+  leadId          String         @map("lead_id") @db.Uuid
+  status          RecoveryStatus @default(SCHEDULED)
+  lossReasonId    String         @map("loss_reason_id") @db.Uuid
+  lossNotes       String         @map("loss_notes")
+  lostById        String?        @map("lost_by_id") @db.Uuid
+  lostAt          DateTime       @map("lost_at") @db.Timestamptz(3)
+  previousOwnerId String?        @map("previous_owner_id") @db.Uuid
+  startsAt        DateTime       @map("starts_at") @db.Timestamptz(3)
+  startedAt       DateTime?      @map("started_at") @db.Timestamptz(3)
+  ownerId         String?        @map("owner_id") @db.Uuid
+  attempts        Int            @default(0)
+  maxAttempts     Int            @map("max_attempts")
+  nextAttemptAt   DateTime?      @map("next_attempt_at") @db.Timestamptz(3)
+  closedAt        DateTime?      @map("closed_at") @db.Timestamptz(3)
+  closeReason     String?        @map("close_reason")
+  createdAt       DateTime       @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([organizationId, brandId, status, nextAttemptAt])
+  @@index([organizationId, leadId])
+  @@map("recovery_cases")
+}
+
+/// Append-only: every recovery attempt and its result.
+model RecoveryAttempt {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  caseId          String    @map("case_id") @db.Uuid
+  leadId          String    @map("lead_id") @db.Uuid
+  attemptNo       Int       @map("attempt_no")
+  channel         String
+  outcome         String
+  notes           String?
+  offeredCourseId String?   @map("offered_course_id") @db.Uuid
+  nextAttemptAt   DateTime? @map("next_attempt_at") @db.Timestamptz(3)
+  actorUserId     String?   @map("actor_user_id") @db.Uuid
+  occurredAt      DateTime  @map("occurred_at") @db.Timestamptz(3)
+
+  @@unique([caseId, attemptNo])
+  @@map("recovery_attempts")
+}

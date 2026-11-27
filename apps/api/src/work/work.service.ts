@@ -26,6 +26,7 @@ import { SettingsService } from '../settings/settings.service';
 import { ACTIVE_STATES, SlaClockService } from './sla-clock.service';
 import { TaskCoreService } from './task-core.service';
 import { recordActivity } from '../engagement/activity-writer';
+import { changeLeadStatus } from '../leads/status-history';
 
 const WORKABLE = ['OPEN', 'ON_HOLD', 'IN_RECOVERY'];
 
@@ -385,7 +386,14 @@ export class WorkService {
       if (!this.leads.canEdit(p, lead.brandId)) throw forbidden();
       if (lead.status !== 'OPEN')
         throw badRequest('LEAD_NOT_OPEN', 'Only open leads can be put on hold');
-      await tx.lead.update({ where: { id: leadId }, data: { status: 'ON_HOLD' } });
+      await changeLeadStatus(tx, {
+        lead,
+        to: 'ON_HOLD',
+        reasonCode: 'HOLD',
+        notes: input.reason,
+        actorUserId: p.userId,
+        now,
+      });
       await this.sla.pause(tx, leadId, input.reason, now);
       if (input.until && lead.ownerId) {
         const cal = await this.settings.calendar(tx, lead.brandId);
@@ -432,7 +440,13 @@ export class WorkService {
       if (lead.status !== 'ON_HOLD')
         throw badRequest('LEAD_NOT_ON_HOLD', 'This lead is not on hold');
       await this.assertNextAction(tx, { id: leadId, status: 'OPEN' }, null, input.nextTask);
-      await tx.lead.update({ where: { id: leadId }, data: { status: 'OPEN' } });
+      await changeLeadStatus(tx, {
+        lead,
+        to: 'OPEN',
+        reasonCode: 'RESUMED',
+        actorUserId: p.userId,
+        now,
+      });
       await this.sla.resume(tx, leadId, now);
       const next = input.nextTask
         ? await this.core.create(tx, {

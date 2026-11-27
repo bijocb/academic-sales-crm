@@ -1,16 +1,15 @@
 import { expect, test } from '@playwright/test';
 
-// Uses the DEMO organization from `pnpm db:seed:demo` (development data only).
-const PASSWORD = process.env.DEMO_PASSWORD || 'DemoPass#2026';
+import { BRAND_MANAGER_STATE } from './session';
+
+// Signed in once as the demo brand manager (auth.setup.ts).
+test.use({ storageState: BRAND_MANAGER_STATE });
 
 test('a lead moves forward only when its stage data is present, and shows on the board', async ({
   page,
 }) => {
   const run = Date.now().toString().slice(-6);
-  await page.goto('/login');
-  await page.getByLabel('Email').fill('brand.india@demo.local');
-  await page.getByLabel('Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.goto('/');
   await expect(page.getByRole('heading', { name: /Welcome/ })).toBeVisible();
 
   await page.getByRole('link', { name: 'Leads', exact: true }).click();
@@ -48,5 +47,7 @@ test('a lead moves forward only when its stage data is present, and shows on the
   await page.getByLabel('Whose leads').selectOption('false');
   const column = page.getByRole('region', { name: 'Qualified' });
   await expect(column.getByText(`E2E Pipe ${run}`)).toBeVisible();
-  await expect(column.getByText('hot')).toBeVisible();
+  await expect(
+    column.getByRole('link', { name: new RegExp(`E2E Pipe ${run}`) }).getByText('hot'),
+  ).toBeVisible();
 });

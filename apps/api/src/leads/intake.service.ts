@@ -8,6 +8,7 @@ import { Db, Tx } from '../db/db.service';
 import { dedupKeyFor, FieldIssue, normalizeEmail, normalizePhone } from './normalize';
 import { DuplicateDetector } from './duplicate-detector';
 import { nameKey } from './duplicate-rules';
+import { cancelRecoveryOnReturn } from '../recovery/recovery-hooks';
 import { AllocationService } from '../allocation/allocation.service';
 
 /** Same active lead, different channel within this window ⇒ CROSS_CHANNEL_DUPLICATE (A-026). */
@@ -298,6 +299,9 @@ export class IntakeService {
           lastEnquiryAt: receivedAt,
         },
       });
+      // Phase 10: a lost lead waiting for recovery is superseded by the fresh enquiry.
+      if (previous?.status === 'LOST')
+        await cancelRecoveryOnReturn(tx, previous.id, lead.leadNumber, now);
     }
 
     // 5. Immutable attribution record.

@@ -31,6 +31,12 @@ const NAV: NavItem[] = [
     show: (s) => !s.me.user.isPlatformAdmin && (s.can('lead.read') || s.can('lead.read_own')),
   },
   {
+    href: '/recovery',
+    label: 'Recovery',
+    show: (s) =>
+      !s.me.user.isPlatformAdmin && (s.can('pipeline.transition') || s.can('recovery.manage')),
+  },
+  {
     href: '/sla',
     label: 'SLA monitor',
     show: (s) => s.can('task.manage') || s.can('allocation.manage'),

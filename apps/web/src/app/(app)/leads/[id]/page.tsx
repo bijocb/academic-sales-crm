@@ -19,6 +19,7 @@ import type { Brand, Course, LeadAssignmentRow, LeadDetail, TimelineItem } from 
 import { AssignLead } from '@/components/assign-lead';
 import { LeadWork } from '@/components/task-panel';
 import { EngagePanel } from '@/components/engage-panel';
+import { MarkLost, RecoveryPanel } from '@/components/recovery-panel';
 import { QualificationCard, QuotationsCard, StagePanel } from '@/components/pipeline-panel';
 
 const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
@@ -43,6 +44,11 @@ const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
   STAGE_CHANGED: 'blue',
   QUOTATION_ACCEPTED: 'green',
   COUNSELLING_RECORDED: 'green',
+  LEAD_LOST: 'amber',
+  LEAD_RECOVERED: 'green',
+  RECOVERY_STARTED: 'blue',
+  RECOVERY_ATTEMPT: 'slate',
+  LEAD_CLOSED: 'amber',
 };
 
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -52,6 +58,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
   const timeline = useLoad(() => api<TimelineItem[]>(`/leads/${id}/timeline`), [id]);
   const brands = useLoad(() => api<Brand[]>('/brands'));
   const [editing, setEditing] = useState(false);
+  const [losing, setLosing] = useState(false);
   const assignments = useLoad(() => api<LeadAssignmentRow[]>(`/leads/${id}/assignments`), [id]);
   const [assigning, setAssigning] = useState(false);
   /** Bumped whenever lead data changes, so panels that derive from it (stage readiness) reload. */
@@ -88,11 +95,20 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
             {l.person.doNotContact && <Badge tone="red">Do not contact</Badge>}
           </div>
         </div>
-        {l.canEdit && l.status !== 'MERGED' && (
-          <Button variant="secondary" onClick={() => setEditing((e) => !e)}>
-            {editing ? 'Close' : 'Edit details'}
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {l.canEdit &&
+            (l.status === 'OPEN' || l.status === 'ON_HOLD') &&
+            can('pipeline.transition') && (
+              <Button variant="danger" onClick={() => setLosing((x) => !x)}>
+                {losing ? 'Cancel' : 'Mark lost'}
+              </Button>
+            )}
+          {l.canEdit && l.status !== 'MERGED' && (
+            <Button variant="secondary" onClick={() => setEditing((e) => !e)}>
+              {editing ? 'Close' : 'Edit details'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {l.mergedInto && (
@@ -120,6 +136,19 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
         </p>
       )}
 
+      {losing && (
+        <div className="mb-6">
+          <MarkLost
+            leadId={l.id}
+            brandId={l.brandId}
+            canManage={can('recovery.manage')}
+            onDone={() => {
+              setLosing(false);
+              changed();
+            }}
+          />
+        </div>
+      )}
       {editing && (
         <div className="mb-6">
           <EditProfile
@@ -263,6 +292,12 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
               onChanged={changed}
             />
           )}
+          <RecoveryPanel
+            key={`rec:${l.status}:${rev}`}
+            leadId={l.id}
+            brandId={l.brandId}
+            onChanged={changed}
+          />
           {l.status !== 'MERGED' && (
             <EngagePanel
               leadId={l.id}
