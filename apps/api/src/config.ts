@@ -1,0 +1,46 @@
+import { z } from '@crm/contracts';
+
+const EnvSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    API_PORT: z.coerce.number().int().default(4000),
+    WEB_ORIGIN: z.url().default('http://localhost:3000'),
+    DATABASE_URL: z.string().min(1),
+    REDIS_URL: z.string().min(1),
+    JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
+    ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
+    REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
+    LOGIN_MAX_FAILURES: z.coerce.number().int().min(3).max(20).default(5),
+    LOGIN_LOCK_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+    SMTP_URL: z
+      .string()
+      .optional()
+      .transform((v) => (v ? v : undefined)),
+    MAIL_FROM: z.string().default('Academic CRM <no-reply@example.com>'),
+    ENABLE_API_DOCS: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((v) => v === 'true'),
+  })
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production' && !env.SMTP_URL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SMTP_URL'],
+        message: 'SMTP_URL is required in production',
+      });
+    }
+  });
+
+export type AppConfig = z.infer<typeof EnvSchema>;
+
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+  const parsed = EnvSchema.safeParse(env);
+  if (!parsed.success) {
+    const lines = parsed.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`).join('\n');
+    throw new Error(`Invalid environment configuration:\n${lines}`);
+  }
+  return parsed.data;
+}
+
+export const APP_CONFIG = Symbol('APP_CONFIG');

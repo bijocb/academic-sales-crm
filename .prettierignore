@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+docs/SRS.md
+apps/api/prisma/migrations
+.next
+dist

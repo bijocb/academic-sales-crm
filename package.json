@@ -1,0 +1,30 @@
+{
+  "name": "academic-sales-crm",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "pnpm -r --workspace-concurrency=1 build",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm --filter @crm/contracts build && pnpm -r typecheck",
+    "test": "pnpm --filter @crm/api test",
+    "test:e2e": "playwright test --trace off",
+    "dev:api": "pnpm --filter @crm/contracts build && pnpm --filter @crm/api dev",
+    "dev:web": "pnpm --filter @crm/web dev",
+    "db:migrate": "pnpm --filter @crm/api db:migrate",
+    "db:migrate:dev": "pnpm --filter @crm/api db:migrate:dev",
+    "db:seed": "pnpm --filter @crm/api db:seed",
+    "db:seed:demo": "pnpm --filter @crm/api db:seed:demo"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "1.63.0",
+    "eslint": "9.39.5",
+    "globals": "16.5.0",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.46.4"
+  }
+}

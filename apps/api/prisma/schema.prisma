@@ -1,0 +1,317 @@
+// Academic Course Sales CRM — Prisma schema
+// Tenant isolation: every tenant table carries organization_id and is protected by
+// PostgreSQL row-level security (see migrations). The app connects as role crm_app.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // app role (crm_app), subject to RLS
+  directUrl = env("MIGRATION_DATABASE_URL") // owner role, used by prisma migrate
+}
+
+enum Country {
+  IN
+  AE
+}
+
+enum Currency {
+  INR
+  AED
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum RecordStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum ScopeType {
+  ORGANIZATION
+  BRAND
+  BRANCH
+  TEAM
+}
+
+enum AuthTokenType {
+  INVITE
+  PASSWORD_RESET
+}
+
+model Organization {
+  id        String             @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String             @unique
+  country   Country
+  timezone  String
+  currency  Currency
+  status    OrganizationStatus @default(ACTIVE)
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  brands          Brand[]
+  branches        Branch[]
+  users           User[]
+  roles           Role[]
+  rolePermissions RolePermission[]
+  roleAssignments RoleAssignment[]
+  teams           Team[]
+  teamMembers     TeamMember[]
+
+  @@map("organizations")
+}
+
+model Brand {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  name           String
+  code           String
+  country        Country
+  timezone       String
+  currency       Currency
+  status         RecordStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branches        Branch[]
+  teams           Team[]
+  roleAssignments RoleAssignment[]
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, id]) // composite FK target keeps children in the same org
+  @@map("brands")
+}
+
+model Branch {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  brandId        String       @map("brand_id") @db.Uuid
+  name           String
+  code           String
+  city           String?
+  country        Country
+  timezone       String
+  status         RecordStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand           Brand            @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
+  teams           Team[]
+  roleAssignments RoleAssignment[]
+
+  @@unique([brandId, code])
+  @@unique([organizationId, id])
+  @@index([organizationId, brandId])
+  @@map("branches")
+}
+
+model User {
+  id               String     @id @default(uuid()) @db.Uuid
+  organizationId   String?    @map("organization_id") @db.Uuid // null only for platform admins
+  isPlatformAdmin  Boolean    @default(false) @map("is_platform_admin")
+  email            String     @unique // stored lower-case (A-013)
+  name             String
+  phone            String?
+  passwordHash     String?    @map("password_hash")
+  status           UserStatus @default(INVITED)
+  managerId        String?    @map("manager_id") @db.Uuid
+  maxActiveLeads   Int?       @map("max_active_leads")
+  languages        String[]   @default([])
+  failedLoginCount Int        @default(0) @map("failed_login_count")
+  lockedUntil      DateTime?  @map("locked_until") @db.Timestamptz(3)
+  mfaEnabled       Boolean    @default(false) @map("mfa_enabled")
+  mfaSecret        String?    @map("mfa_secret")
+  passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz(3)
+  lastLoginAt      DateTime?  @map("last_login_at") @db.Timestamptz(3)
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  manager         User?            @relation("UserManager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports         User[]           @relation("UserManager")
+  roleAssignments RoleAssignment[] @relation("AssignmentUser")
+  teamMemberships TeamMember[]
+  ledTeams        Team[]           @relation("TeamLeader")
+  sessions        Session[]
+  authTokens      AuthToken[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status])
+  @@map("users")
+}
+
+model Role {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  key            String
+  name           String
+  description    String?
+  isSystem       Boolean  @default(false) @map("is_system")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  permissions  RolePermission[]
+  assignments  RoleAssignment[]
+
+  @@unique([organizationId, key])
+  @@unique([organizationId, id])
+  @@map("roles")
+}
+
+model RolePermission {
+  organizationId String @map("organization_id") @db.Uuid
+  roleId         String @map("role_id") @db.Uuid
+  permission     String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  role         Role         @relation(fields: [organizationId, roleId], references: [organizationId, id], onDelete: Cascade)
+
+  @@id([roleId, permission])
+  @@map("role_permissions")
+}
+
+/// Never deleted: revocation sets revoked_at (history preserved).
+model RoleAssignment {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  roleId         String    @map("role_id") @db.Uuid
+  scopeType      ScopeType @map("scope_type")
+  brandId        String?   @map("brand_id") @db.Uuid // set for BRAND, BRANCH and TEAM scopes
+  branchId       String?   @map("branch_id") @db.Uuid
+  teamId         String?   @map("team_id") @db.Uuid
+  grantedById    String?   @map("granted_by_id") @db.Uuid
+  grantedAt      DateTime  @default(now()) @map("granted_at") @db.Timestamptz(3)
+  grantReason    String?   @map("grant_reason")
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokedById    String?   @map("revoked_by_id") @db.Uuid
+  revokeReason   String?   @map("revoke_reason")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("AssignmentUser", fields: [organizationId, userId], references: [organizationId, id], onDelete: Restrict)
+  role         Role         @relation(fields: [organizationId, roleId], references: [organizationId, id], onDelete: Restrict)
+  brand        Brand?       @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
+  branch       Branch?      @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  team         Team?        @relation(fields: [organizationId, teamId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, userId])
+  @@index([organizationId, brandId])
+  @@map("role_assignments")
+}
+
+model Team {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  brandId        String       @map("brand_id") @db.Uuid
+  branchId       String?      @map("branch_id") @db.Uuid
+  name           String
+  leaderId       String?      @map("leader_id") @db.Uuid
+  status         RecordStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand           Brand            @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
+  branch          Branch?          @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Restrict)
+  leader          User?            @relation("TeamLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  members         TeamMember[]
+  roleAssignments RoleAssignment[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, brandId])
+  @@map("teams")
+}
+
+/// Never deleted: leaving a team sets left_at (history preserved).
+model TeamMember {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  teamId         String    @map("team_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  joinedAt       DateTime  @default(now()) @map("joined_at") @db.Timestamptz(3)
+  leftAt         DateTime? @map("left_at") @db.Timestamptz(3)
+  addedById      String?   @map("added_by_id") @db.Uuid
+  removedById    String?   @map("removed_by_id") @db.Uuid
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  team         Team         @relation(fields: [organizationId, teamId], references: [organizationId, id], onDelete: Restrict)
+  user         User         @relation(fields: [organizationId, userId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, teamId])
+  @@index([organizationId, userId])
+  @@map("team_members")
+}
+
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  organizationId   String?   @map("organization_id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  familyId         String    @map("family_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  rotatedAt        DateTime? @map("rotated_at") @db.Timestamptz(3)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokeReason     String?   @map("revoke_reason")
+  userAgent        String?   @map("user_agent")
+  ip               String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("sessions")
+}
+
+model AuthToken {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String?       @map("organization_id") @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
+  type           AuthTokenType
+  tokenHash      String        @unique @map("token_hash")
+  expiresAt      DateTime      @map("expires_at") @db.Timestamptz(3)
+  usedAt         DateTime?     @map("used_at") @db.Timestamptz(3)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_tokens")
+}
+
+/// Append-only. UPDATE/DELETE blocked by trigger and revoked privileges.
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  action         String
+  entityType     String   @map("entity_type")
+  entityId       String?  @map("entity_id")
+  brandId        String?  @map("brand_id") @db.Uuid
+  before         Json?
+  after          Json?
+  reason         String?
+  correlationId  String?  @map("correlation_id")
+  ip             String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, entityType, entityId])
+  @@map("audit_logs")
+}
