@@ -188,16 +188,19 @@ async function seedDemoCatalog(tx: Tx): Promise<void> {
     ],
   };
   for (const b of brands) {
-    if ((await tx.course.count({ where: { brandId: b.id } })) > 0) continue;
-    const cat = await tx.courseCategory.create({
-      data: {
+    const items = catalog[b.code];
+    if (!items || (await tx.course.count({ where: { brandId: b.id } })) > 0) continue;
+    const cat = await tx.courseCategory.upsert({
+      where: { brandId_code: { brandId: b.id, code: 'PROF' } },
+      update: {},
+      create: {
         organizationId: org.id,
         brandId: b.id,
         name: 'Professional programmes',
         code: 'PROF',
       },
     });
-    for (const c of catalog[b.code] ?? []) {
+    for (const c of items) {
       const course = await tx.course.create({
         data: {
           organizationId: org.id,
