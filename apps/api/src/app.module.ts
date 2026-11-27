@@ -31,6 +31,13 @@ import { CatalogController } from './catalog/catalog.controller';
 import { CatalogService } from './catalog/catalog.service';
 import { SettingsController } from './settings/settings.controller';
 import { SettingsService } from './settings/settings.service';
+import { IntakeController } from './leads/intake.controller';
+import { LeadsController } from './leads/leads.controller';
+import { IntakeService } from './leads/intake.service';
+import { IntakeKeyResolver } from './leads/intake-keys';
+import { LeadsService } from './leads/leads.service';
+import { LeadConfigService } from './leads/lead-config.service';
+import { IntakeAdminService } from './leads/intake-admin.service';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -78,6 +85,8 @@ export class AppModule implements NestModule {
         RolesController,
         CatalogController,
         SettingsController,
+        IntakeController,
+        LeadsController,
       ],
       providers: [
         { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -90,6 +99,11 @@ export class AppModule implements NestModule {
         RolesService,
         CatalogService,
         SettingsService,
+        IntakeService,
+        IntakeKeyResolver,
+        LeadsService,
+        LeadConfigService,
+        IntakeAdminService,
       ],
     };
   }

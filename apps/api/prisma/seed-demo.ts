@@ -8,6 +8,11 @@ import { resolveDatabaseEnv } from '../src/db-env';
 import { hashPassword } from '../src/auth/crypto';
 import { seedSystemRoles } from '../src/platform/organizations.service';
 import { ensureBrandDefaults } from '../src/settings/brand-defaults';
+import { AuditService } from '../src/audit/audit.service';
+import { SystemClock } from '../src/common/clock';
+import { Db } from '../src/db/db.service';
+import type { PrismaService } from '../src/db/prisma.service';
+import { IntakeService } from '../src/leads/intake.service';
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'DemoPass#2026';
 
@@ -138,6 +143,7 @@ async function main(): Promise<void> {
       await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
       await seedDemoCatalog(tx);
     });
+    await seedDemoLeads(prisma);
   } finally {
     await prisma.$disconnect();
   }
@@ -232,6 +238,108 @@ async function seedDemoCatalog(tx: Tx): Promise<void> {
     }
   }
   console.log('Demo catalogue ensured');
+}
+
+/** A handful of [DEMO] leads through the real intake pipeline (idempotent via external IDs). */
+async function seedDemoLeads(prisma: PrismaClient): Promise<void> {
+  const org = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+    const o = await tx.organization.findUnique({
+      where: { slug: 'demo-education' },
+      include: { brands: { include: { leadSources: true } } },
+    });
+    return o;
+  });
+  if (!org) return;
+  const intake = new IntakeService(
+    new Db(prisma as unknown as PrismaService),
+    new SystemClock(),
+    new AuditService(),
+  );
+  const brand = (code: string) => org.brands.find((b) => b.code === code)!;
+  const src = (code: string, channel: string) =>
+    brand(code).leadSources.find((s) => s.channel === channel)?.id;
+  const leads: Array<[string, string, Record<string, string>]> = [
+    [
+      'ACAD-IN',
+      'WEBSITE',
+      {
+        name: '[DEMO] Ananya Menon',
+        phone: '9846000001',
+        email: 'ananya.demo@example.com',
+        courseCode: 'DS-PRO',
+        utm_source: 'google',
+        utm_medium: 'cpc',
+        utm_campaign: 'ds-jan-2027',
+        city: 'Kochi',
+      },
+    ],
+    [
+      'ACAD-IN',
+      'GOOGLE_ADS',
+      {
+        name: '[DEMO] Rohit Nair',
+        phone: '9846000002',
+        courseCode: 'DM-CERT',
+        utm_source: 'google',
+        utm_campaign: 'dm-brand',
+      },
+    ],
+    [
+      'ACAD-IN',
+      'META_ADS',
+      {
+        name: '[DEMO] Sneha Pillai',
+        phone: '9846000003',
+        email: 'sneha.demo@example.com',
+        course: 'Data Science',
+        utm_source: 'facebook',
+        utm_medium: 'paid_social',
+      },
+    ],
+    [
+      'ACAD-IN',
+      'WEBSITE',
+      {
+        name: '[DEMO] Ananya Menon',
+        phone: '+91 98460 00001',
+        courseCode: 'DM-CERT',
+        message: 'Also interested in weekend batches',
+      },
+    ],
+    [
+      'INST-AE',
+      'WEBSITE',
+      {
+        name: '[DEMO] Omar Haddad',
+        phone: '050 600 0001',
+        email: 'omar.demo@example.ae',
+        courseCode: 'PM-PRO',
+        city: 'Dubai',
+      },
+    ],
+    [
+      'INST-AE',
+      'REFERRAL',
+      { name: '[DEMO] Priya Sharma', phone: '+971 55 600 0002', course: 'Project Management' },
+    ],
+  ];
+  let i = 0;
+  for (const [code, channel, data] of leads) {
+    i++;
+    await intake.ingest(
+      {
+        organizationId: org.id,
+        brandId: brand(code).id,
+        channel: channel as never,
+        sourceId: src(code, channel),
+        exceptionOnInvalid: true,
+        dedupKey: `demo-seed:${i}`,
+      },
+      data,
+    );
+  }
+  console.log('Demo leads ensured');
 }
 
 main().catch((e) => {

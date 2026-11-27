@@ -78,6 +78,50 @@ enum TimeBasis {
   CALENDAR
 }
 
+enum LeadChannel {
+  META_ADS
+  GOOGLE_ADS
+  WEBSITE
+  WHATSAPP
+  CALL
+  REFERRAL
+  EVENT
+  IMPORT
+  MANUAL
+  OTHER
+}
+
+enum LeadStatus {
+  OPEN
+  ON_HOLD
+  LOST
+  IN_RECOVERY
+  CLOSED_LOST
+  CONVERTED
+}
+
+enum EnquiryClassification {
+  NEW_LEAD
+  EXISTING_LEAD
+  RETURNING_LEAD
+}
+
+enum ExceptionStatus {
+  OPEN
+  RESOLVED
+  DISCARDED
+}
+
+enum ImportStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum DuplicatePolicy {
+  ADD_ENQUIRY
+  SKIP_EXISTING
+}
+
 enum AuthTokenType {
   INVITE
   PASSWORD_RESET
@@ -110,6 +154,14 @@ model Organization {
   slaPolicies      SlaPolicy[]
   slaCheckpoints   SlaCheckpoint[]
   pipelineStages   PipelineStage[]
+  persons          Person[]
+  leads            Lead[]
+  enquiries        Enquiry[]
+  leadSources      LeadSource[]
+  campaigns        Campaign[]
+  intakeKeys       IntakeKey[]
+  intakeExceptions IntakeException[]
+  leadImports      LeadImport[]
 
   @@map("organizations")
 }
@@ -126,7 +178,7 @@ model Brand {
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   branches         Branch[]
   teams            Team[]
   roleAssignments  RoleAssignment[]
@@ -137,6 +189,13 @@ model Brand {
   holidays         Holiday[]
   slaPolicy        SlaPolicy?
   pipelineStages   PipelineStage[]
+  leads            Lead[]
+  enquiries        Enquiry[]
+  leadSources      LeadSource[]
+  campaigns        Campaign[]
+  intakeKeys       IntakeKey[]
+  intakeExceptions IntakeException[]
+  leadImports      LeadImport[]
 
   @@unique([organizationId, code])
   @@unique([organizationId, id]) // composite FK target keeps children in the same org
@@ -407,6 +466,8 @@ model Course {
   brand        Brand           @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
   category     CourseCategory? @relation(fields: [organizationId, categoryId], references: [organizationId, id], onDelete: Restrict)
   batches      Batch[]
+  leads        Lead[]
+  enquiries    Enquiry[]
 
   @@unique([brandId, code])
   @@unique([organizationId, id])
@@ -523,4 +584,258 @@ model PipelineStage {
 
   @@unique([brandId, key])
   @@map("pipeline_stages")
+}
+
+// ---------------------------------------------------------------- Phase 4
+
+/// Identity of a prospective student within an organization (D-004).
+model Person {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  fullName       String    @map("full_name")
+  phoneE164      String?   @map("phone_e164")
+  phoneRaw       String?   @map("phone_raw")
+  email          String?
+  city           String?
+  language       String?
+  doNotContact   Boolean   @default(false) @map("do_not_contact")
+  doNotContactAt DateTime? @map("do_not_contact_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  leads        Lead[]
+  enquiries    Enquiry[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, email])
+  @@map("persons")
+}
+
+/// Sales work record for one person in one brand.
+model Lead {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  brandId        String     @map("brand_id") @db.Uuid
+  personId       String     @map("person_id") @db.Uuid
+  leadNumber     String     @map("lead_number")
+  stage          String     @default("NEW_ENQUIRY")
+  status         LeadStatus @default(OPEN)
+  ownerId        String?    @map("owner_id") @db.Uuid
+  courseId       String?    @map("course_id") @db.Uuid
+  previousLeadId String?    @map("previous_lead_id") @db.Uuid
+  firstEnquiryAt DateTime   @map("first_enquiry_at") @db.Timestamptz(3)
+  lastEnquiryAt  DateTime   @map("last_enquiry_at") @db.Timestamptz(3)
+  enquiryCount   Int        @default(1) @map("enquiry_count")
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand        Brand        @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
+  person       Person       @relation(fields: [organizationId, personId], references: [organizationId, id], onDelete: Restrict)
+  course       Course?      @relation(fields: [organizationId, courseId], references: [organizationId, id], onDelete: Restrict)
+  enquiries    Enquiry[]
+
+  @@unique([organizationId, leadNumber])
+  @@unique([organizationId, id])
+  @@index([organizationId, brandId, status, createdAt])
+  @@index([organizationId, personId])
+  @@map("leads")
+}
+
+/// Append-only: each submission with its original attribution. UPDATE/DELETE blocked by trigger.
+model Enquiry {
+  id               String                @id @default(uuid()) @db.Uuid
+  organizationId   String                @map("organization_id") @db.Uuid
+  brandId          String                @map("brand_id") @db.Uuid
+  leadId           String                @map("lead_id") @db.Uuid
+  personId         String                @map("person_id") @db.Uuid
+  classification   EnquiryClassification
+  channel          LeadChannel
+  sourceId         String?               @map("source_id") @db.Uuid
+  campaignId       String?               @map("campaign_id") @db.Uuid
+  courseId         String?               @map("course_id") @db.Uuid
+  dedupKey         String                @map("dedup_key")
+  externalId       String?               @map("external_id")
+  receivedAt       DateTime              @map("received_at") @db.Timestamptz(3)
+  submittedName    String?               @map("submitted_name")
+  submittedPhone   String?               @map("submitted_phone")
+  submittedEmail   String?               @map("submitted_email")
+  courseText       String?               @map("course_text")
+  city             String?
+  message          String?
+  utmSource        String?               @map("utm_source")
+  utmMedium        String?               @map("utm_medium")
+  utmCampaign      String?               @map("utm_campaign")
+  utmTerm          String?               @map("utm_term")
+  utmContent       String?               @map("utm_content")
+  landingPage      String?               @map("landing_page")
+  referrer         String?
+  adId             String?               @map("ad_id")
+  adsetId          String?               @map("adset_id")
+  formId           String?               @map("form_id")
+  isPaid           Boolean               @default(false) @map("is_paid")
+  consentMarketing Boolean?              @map("consent_marketing")
+  consentText      String?               @map("consent_text")
+  consentAt        DateTime?             @map("consent_at") @db.Timestamptz(3)
+  importId         String?               @map("import_id") @db.Uuid
+  createdById      String?               @map("created_by_id") @db.Uuid
+  extra            Json?
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand        Brand        @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
+  lead         Lead         @relation(fields: [organizationId, leadId], references: [organizationId, id], onDelete: Restrict)
+  person       Person       @relation(fields: [organizationId, personId], references: [organizationId, id], onDelete: Restrict)
+  source       LeadSource?  @relation(fields: [organizationId, sourceId], references: [organizationId, id], onDelete: Restrict)
+  campaign     Campaign?    @relation(fields: [organizationId, campaignId], references: [organizationId, id], onDelete: Restrict)
+  course       Course?      @relation(fields: [organizationId, courseId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([brandId, dedupKey])
+  @@index([organizationId, leadId, receivedAt])
+  @@index([organizationId, brandId, receivedAt])
+  @@map("enquiries")
+}
+
+model LeadSource {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  brandId        String       @map("brand_id") @db.Uuid
+  name           String
+  channel        LeadChannel
+  isPaid         Boolean      @default(false) @map("is_paid")
+  status         RecordStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand        Brand        @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
+  enquiries    Enquiry[]
+  intakeKeys   IntakeKey[]
+  campaigns    Campaign[]
+
+  @@unique([brandId, name])
+  @@unique([organizationId, id])
+  @@map("lead_sources")
+}
+
+model Campaign {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  brandId        String       @map("brand_id") @db.Uuid
+  sourceId       String?      @map("source_id") @db.Uuid
+  name           String
+  utmCampaign    String?      @map("utm_campaign")
+  externalId     String?      @map("external_id")
+  startDate      DateTime?    @map("start_date") @db.Date
+  endDate        DateTime?    @map("end_date") @db.Date
+  status         RecordStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand        Brand        @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
+  source       LeadSource?  @relation(fields: [organizationId, sourceId], references: [organizationId, id], onDelete: Restrict)
+  enquiries    Enquiry[]
+
+  @@unique([brandId, name])
+  @@unique([organizationId, id])
+  @@index([brandId, utmCampaign])
+  @@index([brandId, externalId])
+  @@map("campaigns")
+}
+
+/// API keys for intake channels. Only a SHA-256 hash is stored; the key is shown once.
+model IntakeKey {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  brandId        String    @map("brand_id") @db.Uuid
+  sourceId       String    @map("source_id") @db.Uuid
+  name           String
+  keyPrefix      String    @map("key_prefix")
+  keyHash        String    @unique @map("key_hash")
+  createdById    String?   @map("created_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt     DateTime? @map("last_used_at") @db.Timestamptz(3)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand        Brand        @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
+  source       LeadSource   @relation(fields: [organizationId, sourceId], references: [organizationId, id], onDelete: Restrict)
+
+  @@map("intake_keys")
+}
+
+model IntakeException {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  brandId        String          @map("brand_id") @db.Uuid
+  channel        LeadChannel
+  sourceId       String?         @map("source_id") @db.Uuid
+  importId       String?         @map("import_id") @db.Uuid
+  rowNumber      Int?            @map("row_number")
+  dedupKey       String          @map("dedup_key")
+  payload        Json
+  errors         Json
+  status         ExceptionStatus @default(OPEN)
+  resolvedById   String?         @map("resolved_by_id") @db.Uuid
+  resolvedAt     DateTime?       @map("resolved_at") @db.Timestamptz(3)
+  resolvedLeadId String?         @map("resolved_lead_id") @db.Uuid
+  resolutionNote String?         @map("resolution_note")
+  receivedAt     DateTime        @map("received_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand        Brand        @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([brandId, dedupKey])
+  @@index([organizationId, brandId, status])
+  @@map("intake_exceptions")
+}
+
+model LeadImport {
+  id              String          @id @default(uuid()) @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  brandId         String          @map("brand_id") @db.Uuid
+  sourceId        String?         @map("source_id") @db.Uuid
+  fileName        String          @map("file_name")
+  duplicatePolicy DuplicatePolicy @map("duplicate_policy")
+  status          ImportStatus    @default(IN_PROGRESS)
+  totalRows       Int             @default(0) @map("total_rows")
+  createdLeads    Int             @default(0) @map("created_leads")
+  addedEnquiries  Int             @default(0) @map("added_enquiries")
+  skipped         Int             @default(0)
+  invalid         Int             @default(0)
+  createdById     String?         @map("created_by_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt     DateTime?       @map("completed_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand        Brand        @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict)
+
+  @@map("lead_imports")
+}
+
+/// Transactional outbox: events written with the change, delivered to workers (Phase 6+).
+model OutboxEvent {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  type           String
+  aggregateType  String    @map("aggregate_type")
+  aggregateId    String    @map("aggregate_id")
+  payload        Json
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt    DateTime? @map("published_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox_events")
+}
+
+/// Per-organization sequences (e.g. lead numbers).
+model OrgCounter {
+  organizationId String @map("organization_id") @db.Uuid
+  name           String
+  value          BigInt @default(0)
+
+  @@id([organizationId, name])
+  @@map("org_counters")
 }

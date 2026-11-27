@@ -13,6 +13,14 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: '/', label: 'Dashboard', show: (s) => !s.me.user.isPlatformAdmin },
+  { href: '/leads', label: 'Leads', show: (s) => s.can('lead.read') || s.can('lead.read_own') },
+  { href: '/leads/import', label: 'Import leads', show: (s) => s.can('lead.import') },
+  { href: '/leads/exceptions', label: 'Rejected leads', show: (s) => s.can('lead.import') },
+  {
+    href: '/lead-sources',
+    label: 'Sources & campaigns',
+    show: (s) => s.can('campaign.manage') || s.can('integration.manage'),
+  },
   { href: '/brands', label: 'Brands & branches', show: (s) => s.can('brand.read') },
   { href: '/teams', label: 'Teams', show: (s) => s.can('team.read') },
   { href: '/courses', label: 'Courses & batches', show: (s) => s.can('course.read') },
@@ -50,7 +58,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="space-y-0.5 px-3 py-3 lg:py-0" aria-label="Main">
           {items.map((n) => {
-            const active = n.href === '/' ? pathname === '/' : pathname.startsWith(n.href);
+            const active =
+              n.href === '/'
+                ? pathname === '/'
+                : pathname === n.href ||
+                  (pathname.startsWith(n.href + '/') &&
+                    !NAV.some(
+                      (o) =>
+                        o.href !== n.href &&
+                        o.href.startsWith(n.href + '/') &&
+                        pathname.startsWith(o.href),
+                    ));
             return (
               <Link
                 key={n.href}

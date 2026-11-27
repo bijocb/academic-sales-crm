@@ -44,6 +44,12 @@ Status: **DECIDED** = confirmed by business owner · **ASSUMED** = default chose
 | A-019 | Default SLA ladder per brand from the diagram: remind 5, alert team leader 15 (= first-response target), reassign 30 and 60, escalate to manager 90; all on working minutes; max 3 automatic reassignments; same executive excluded for 24 h. Editable per brand. | FR-009 |
 | A-020 | Course fees are stored in the brand's currency only (no multi-currency price lists yet). Full fee plans, discounts and instalments arrive in Phase 12. | D-002, FR-015 |
 
+| A-021 | One person per normalized phone number (E.164) per organization; email matching is used only when no phone matches. Shared family phones are a Phase 5 duplicate-review case. | D-004, FR-005 |
+| A-022 | A lead needs a name plus a valid phone or email. Local numbers use the brand's country (India +91, UAE +971). Unknown course codes or campaigns are kept as text, not rejected. | FR-004 |
+| A-023 | Idempotency: provider/external ID, or a hash of the submission + calendar day. Identical resubmissions on the same day are treated as one; a repeat enquiry on a later day is recorded. | FR-004 |
+| A-024 | Leads have no owner until Phase 6 allocation. A user with `lead.read_own` sees leads they own or entered personally. Marketing roles without `pii.view_full` see masked phones/emails. | FR-007, §2.1 |
+| A-025 | Meta Lead Ads and WhatsApp connectors wait for the owner's Meta app / WhatsApp Business account (O-04, O-06). Until then Meta leads can arrive via the intake API (e.g. Zapier/Make) and are attributed with channel META_ADS through a Meta source key. | FR-003, rule 10 |
+
 ## Resolved
 
 | ID   | Resolution                                               | Date       |

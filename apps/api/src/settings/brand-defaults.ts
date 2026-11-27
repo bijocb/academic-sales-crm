@@ -52,5 +52,24 @@ export async function ensureBrandDefaults(
     });
     created.push('pipeline_stages');
   }
+  if ((await tx.leadSource.count({ where: { brandId } })) === 0) {
+    await tx.leadSource.createMany({
+      data: DEFAULT_LEAD_SOURCES.map((x) => ({ organizationId, brandId, ...x })),
+    });
+    created.push('lead_sources');
+  }
   return { created };
 }
+
+/** Starter sources per brand (renamable/archivable). */
+export const DEFAULT_LEAD_SOURCES = [
+  { name: 'Website', channel: 'WEBSITE' as const, isPaid: false },
+  { name: 'Google Ads', channel: 'GOOGLE_ADS' as const, isPaid: true },
+  { name: 'Meta Ads', channel: 'META_ADS' as const, isPaid: true },
+  { name: 'WhatsApp', channel: 'WHATSAPP' as const, isPaid: false },
+  { name: 'Walk-in / Phone call', channel: 'CALL' as const, isPaid: false },
+  { name: 'Referral', channel: 'REFERRAL' as const, isPaid: false },
+  { name: 'Events', channel: 'EVENT' as const, isPaid: false },
+  { name: 'Imported list', channel: 'IMPORT' as const, isPaid: false },
+  { name: 'Manual entry', channel: 'MANUAL' as const, isPaid: false },
+];

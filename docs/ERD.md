@@ -1,6 +1,6 @@
 # Entity relationship diagram
 
-Current as of Phase 3 (migrations `…_identity`, `…_catalog_and_settings`). Every table except `organizations` carries
+Current as of Phase 4 (migrations `…_identity`, `…_catalog_and_settings`, `…_lead_capture`). Every table except `organizations` carries
 `organization_id` and is protected by row-level security. Children reference parents with composite keys
 `(organization_id, id)`, so a row can never point at another organization's record.
 
@@ -64,3 +64,29 @@ erDiagram
 | `holidays`                        | Local date per brand, unique                                                                                                                       |
 | `sla_policies`, `sla_checkpoints` | One policy per brand; ordered checkpoints with action and WORKING/CALENDAR basis                                                                   |
 | `pipeline_stages`                 | 8 fixed keys per brand; editable label and required fields                                                                                         |
+
+## Phase 4 tables
+
+```mermaid
+erDiagram
+  persons ||--o{ leads : "has (one active per brand)"
+  brands ||--o{ leads : owns
+  leads ||--o{ enquiries : "append-only history"
+  persons ||--o{ enquiries : submitted
+  lead_sources |o--o{ enquiries : attributed
+  campaigns |o--o{ enquiries : attributed
+  lead_sources ||--o{ intake_keys : authenticates
+  brands ||--o{ intake_exceptions : rejected
+  brands ||--o{ lead_imports : batches
+```
+
+| Table                       | Notes                                                                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `persons`                   | Unique `(organization_id, phone_e164)`; email lower-case; phone or email required (CHECK); `do_not_contact` for opt-outs                                                       |
+| `leads`                     | `lead_number` unique per org (L-000001 via `org_counters`); status enum; stage = pipeline key; partial unique: one active (OPEN/ON_HOLD/IN_RECOVERY) lead per person per brand |
+| `enquiries`                 | **Append-only** (trigger + only SELECT/INSERT granted): channel, source, campaign, UTM, ad/form IDs, raw submitted values, consent; unique `(brand_id, dedup_key)`             |
+| `lead_sources`, `campaigns` | Per brand; 9 default sources created per brand                                                                                                                                 |
+| `intake_keys`               | SHA-256 hash only; revocable; `last_used_at`                                                                                                                                   |
+| `intake_exceptions`         | Rejected submissions with payload + errors; OPEN → RESOLVED / DISCARDED                                                                                                        |
+| `lead_imports`              | Per upload: counters, duplicate policy, status                                                                                                                                 |
+| `outbox_events`             | `lead.created` / `enquiry.received`, written in the same transaction                                                                                                           |

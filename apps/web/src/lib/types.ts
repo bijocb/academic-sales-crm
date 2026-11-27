@@ -148,3 +148,90 @@ export interface Holiday {
   date: string;
   name: string;
 }
+export interface LeadPerson {
+  id: string;
+  fullName: string;
+  phone: string | null;
+  email: string | null;
+  city: string | null;
+  doNotContact: boolean;
+  piiMasked: boolean;
+}
+export interface LeadRow {
+  id: string;
+  leadNumber: string;
+  brandId: string;
+  stage: string;
+  status: string;
+  enquiryCount: number;
+  firstEnquiryAt: string;
+  lastEnquiryAt: string;
+  course: { id: string; name: string } | null;
+  originalSource: { channel: string; source: string | null; utmCampaign: string | null } | null;
+  person: LeadPerson;
+}
+export interface Enquiry {
+  id: string;
+  classification: string;
+  channel: string;
+  receivedAt: string;
+  submittedName: string | null;
+  submittedPhone: string | null;
+  submittedEmail: string | null;
+  courseText: string | null;
+  message: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  landingPage: string | null;
+  isPaid: boolean;
+  source: { id: string; name: string } | null;
+  campaign: { id: string; name: string } | null;
+  course: { id: string; name: string } | null;
+}
+export interface LeadDetail extends Omit<LeadRow, 'originalSource'> {
+  enquiries: Enquiry[];
+  previousLeadId: string | null;
+}
+export interface LeadSource {
+  id: string;
+  brandId: string;
+  name: string;
+  channel: string;
+  isPaid: boolean;
+  status: string;
+}
+export interface Campaign {
+  id: string;
+  brandId: string;
+  name: string;
+  utmCampaign: string | null;
+  externalId: string | null;
+  status: string;
+  source: { id: string; name: string } | null;
+}
+export interface IntakeKeyRow {
+  id: string;
+  brandId: string;
+  name: string;
+  keyPrefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  source: { name: string; channel: string };
+}
+export interface FieldIssue {
+  field: string;
+  message: string;
+}
+export interface IntakeExceptionRow {
+  id: string;
+  brandId: string;
+  channel: string;
+  importId: string | null;
+  rowNumber: number | null;
+  payload: Record<string, string>;
+  errors: FieldIssue[];
+  status: string;
+  receivedAt: string;
+}
