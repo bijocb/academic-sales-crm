@@ -10,6 +10,7 @@ import { Clock, FixedClock } from '../src/common/clock';
 import { MailMessage, MailService } from '../src/mail/mail.service';
 import { hashPassword } from '../src/auth/crypto';
 import { seedSystemRoles } from '../src/platform/organizations.service';
+import { ensureBrandDefaults } from '../src/settings/brand-defaults';
 import { TEST_ENV } from './env';
 
 /** TEST DOUBLE — captures outgoing mail instead of sending it. */
@@ -73,7 +74,7 @@ export async function resetDatabase(owner: PrismaClient): Promise<void> {
   await owner.$transaction([
     owner.$executeRawUnsafe(`SET LOCAL session_replication_role = replica`),
     owner.$executeRawUnsafe(
-      `TRUNCATE audit_logs, auth_tokens, sessions, team_members, role_assignments, role_permissions, roles, teams, branches, users, brands, organizations CASCADE`,
+      `TRUNCATE sla_checkpoints, sla_policies, pipeline_stages, working_hours, holidays, batches, courses, course_categories, audit_logs, auth_tokens, sessions, team_members, role_assignments, role_permissions, roles, teams, branches, users, brands, organizations CASCADE`,
     ),
   ]);
 }
@@ -112,6 +113,7 @@ export async function createOrgFixture(owner: PrismaClient, slug: string): Promi
           currency: cur,
         },
       });
+      await ensureBrandDefaults(tx, b);
       const br = await tx.branch.create({
         data: {
           organizationId: org.id,

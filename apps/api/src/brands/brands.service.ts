@@ -13,6 +13,7 @@ import { AuditService } from '../audit/audit.service';
 import type { OrgPrincipal } from '../auth/principal';
 import { badRequest, forbidden, notFound } from '../common/errors';
 import { Db } from '../db/db.service';
+import { ensureBrandDefaults } from '../settings/brand-defaults';
 
 @Injectable()
 export class BrandsService {
@@ -57,6 +58,7 @@ export class BrandsService {
           currency: input.currency ?? DEFAULT_CURRENCY[input.country],
         },
       });
+      await ensureBrandDefaults(tx, brand);
       await this.audit.record(tx, {
         organizationId: p.organizationId,
         brandId: brand.id,

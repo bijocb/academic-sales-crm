@@ -15,6 +15,12 @@ const NAV: NavItem[] = [
   { href: '/', label: 'Dashboard', show: (s) => !s.me.user.isPlatformAdmin },
   { href: '/brands', label: 'Brands & branches', show: (s) => s.can('brand.read') },
   { href: '/teams', label: 'Teams', show: (s) => s.can('team.read') },
+  { href: '/courses', label: 'Courses & batches', show: (s) => s.can('course.read') },
+  {
+    href: '/settings',
+    label: 'Brand settings',
+    show: (s) => s.can('brand.read') && !s.me.user.isPlatformAdmin,
+  },
   { href: '/users', label: 'Users', show: (s) => s.can('user.read') },
   { href: '/roles', label: 'Roles', show: (s) => s.can('role.read') || s.can('role.assign') },
   { href: '/audit', label: 'Audit log', show: (s) => s.can('audit.read') },

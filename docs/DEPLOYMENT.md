@@ -2,12 +2,12 @@
 
 ## Current demo hosting (Vercel + Neon)
 
-| Part | Where | Notes |
-|---|---|---|
-| Web (`apps/web`) | Vercel project `academic-sales-crm-web` → https://academic-sales-crm-web.vercel.app | Proxies `/api/v1/*` to the API (`API_INTERNAL_URL`) so auth cookies stay first-party |
-| API (`apps/api`) | Vercel project `academic-sales-crm-api` (Node 22, region `sin1`) | Nest app as one Vercel function (`apps/api/api/index.js`) |
-| Database | Neon Postgres (free), connected to the API project | Owner credentials injected as `DATABASE_URL` / `DATABASE_URL_UNPOOLED`; the app derives its `crm_app` login from them (`src/db-env.ts`) |
-| Redis | not configured | Not needed until background jobs (Phase 6/7) |
+| Part             | Where                                                                               | Notes                                                                                                                                   |
+| ---------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Web (`apps/web`) | Vercel project `academic-sales-crm-web` → https://academic-sales-crm-web.vercel.app | Proxies `/api/v1/*` to the API (`API_INTERNAL_URL`) so auth cookies stay first-party                                                    |
+| API (`apps/api`) | Vercel project `academic-sales-crm-api` (Node 22, region `sin1`)                    | Nest app as one Vercel function (`apps/api/api/index.js`)                                                                               |
+| Database         | Neon Postgres (free), connected to the API project                                  | Owner credentials injected as `DATABASE_URL` / `DATABASE_URL_UNPOOLED`; the app derives its `crm_app` login from them (`src/db-env.ts`) |
+| Redis            | not configured                                                                      | Not needed until background jobs (Phase 6/7)                                                                                            |
 
 Every push to `main` deploys both projects. The API build runs migrations, enables the `crm_app`
 role, creates the platform admin (`SEED_PLATFORM_ADMIN_*`) and — because `ALLOW_DEMO_SEED=true`

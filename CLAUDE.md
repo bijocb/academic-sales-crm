@@ -33,7 +33,10 @@ Read first: `docs/SRS.md` (spec), `docs/DECISIONS.md` (overrides SRS where they 
 - `pnpm db:seed:demo` — DEV ONLY demo organization (`*@demo.local`, password `DemoPass#2026`)
 - `pnpm dev:api` / `pnpm dev:web` — run locally (API :4000, web :3000)
 - `pnpm lint` · `pnpm format:check` · `pnpm typecheck` · `pnpm test` · `pnpm build` · `pnpm test:e2e`
-- New migration: `cd apps/api && npx prisma migrate dev --create-only --name <name>`; add RLS policy + grants for every new tenant table in the same migration.
+- New migration (the shadow database cannot replay migration 1, so diff against the live dev DB):
+  `cd apps/api && set -a && . ../../.env && set +a && mkdir -p prisma/migrations/<timestamp>_<name> && npx prisma migrate diff --from-url "$MIGRATION_DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script > prisma/migrations/<timestamp>_<name>/migration.sql`
+  then append CHECKs, `GRANT … TO crm_app` and the RLS `tenant_isolation` block for every new tenant table, and run `pnpm db:migrate`.
+- New brand-level configuration needs a default in `src/settings/brand-defaults.ts` (back-filled on every deploy).
 
 ## Conventions
 

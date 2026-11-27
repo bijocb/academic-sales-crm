@@ -85,3 +85,66 @@ export interface Paged<T> {
   page: number;
   pageSize: number;
 }
+export interface CourseCategory {
+  id: string;
+  brandId: string;
+  name: string;
+  code: string;
+  status: string;
+  _count?: { courses: number };
+}
+export interface Course {
+  id: string;
+  brandId: string;
+  categoryId: string | null;
+  code: string;
+  name: string;
+  description: string | null;
+  eligibility: string | null;
+  deliveryMode: 'ONLINE' | 'OFFLINE' | 'HYBRID';
+  durationValue: number | null;
+  durationUnit: 'DAYS' | 'WEEKS' | 'MONTHS' | 'YEARS' | null;
+  listFeeMinor: number | null;
+  currency: 'INR' | 'AED';
+  status: 'ACTIVE' | 'ARCHIVED';
+  category?: { id: string; name: string } | null;
+  _count?: { batches: number };
+}
+export interface Batch {
+  id: string;
+  courseId: string;
+  branchId: string | null;
+  code: string;
+  name: string;
+  startDate: string;
+  endDate: string | null;
+  capacity: number;
+  schedule: string | null;
+  status: 'PLANNED' | 'OPEN' | 'CLOSED' | 'CANCELLED';
+  course?: { id: string; name: string; code: string };
+  branch?: { id: string; name: string } | null;
+}
+export interface Shift {
+  weekday: number;
+  startMinute: number;
+  endMinute: number;
+}
+export interface SlaPolicy {
+  firstResponseMinutes: number;
+  firstResponseBasis: 'WORKING' | 'CALENDAR';
+  maxReassignAttempts: number;
+  reassignCooldownMinutes: number;
+  checkpoints: Array<{ action: string; afterMinutes: number; basis: 'WORKING' | 'CALENDAR' }>;
+}
+export interface PipelineStage {
+  id: string;
+  key: string;
+  position: number;
+  label: string;
+  requiredFields: string[];
+}
+export interface Holiday {
+  id: string;
+  date: string;
+  name: string;
+}

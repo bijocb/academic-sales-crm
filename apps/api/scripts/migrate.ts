@@ -18,6 +18,7 @@ const run = (cmd: string) => execSync(cmd, { cwd, stdio: 'inherit', env: process
 
 run('npx prisma migrate deploy');
 run('npx tsx scripts/setup-db-role.ts');
+run('npx tsx scripts/backfill-defaults.ts');
 if (process.argv.includes('--seed')) {
   if (process.env.SEED_PLATFORM_ADMIN_EMAIL) run('npx tsx prisma/seed.ts');
   if (process.env.ALLOW_DEMO_SEED === 'true') run('npx tsx prisma/seed-demo.ts');

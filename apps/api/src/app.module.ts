@@ -1,3 +1,4 @@
+import './common/bigint-json';
 import { DynamicModule, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -26,6 +27,10 @@ import { UsersController } from './users/users.controller';
 import { UsersService } from './users/users.service';
 import { RolesController } from './roles/roles.controller';
 import { RolesService } from './roles/roles.service';
+import { CatalogController } from './catalog/catalog.controller';
+import { CatalogService } from './catalog/catalog.service';
+import { SettingsController } from './settings/settings.controller';
+import { SettingsService } from './settings/settings.service';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -71,6 +76,8 @@ export class AppModule implements NestModule {
         TeamsController,
         UsersController,
         RolesController,
+        CatalogController,
+        SettingsController,
       ],
       providers: [
         { provide: APP_GUARD, useClass: ThrottlerGuard },
@@ -81,6 +88,8 @@ export class AppModule implements NestModule {
         TeamsService,
         UsersService,
         RolesService,
+        CatalogService,
+        SettingsService,
       ],
     };
   }

@@ -35,3 +35,16 @@ Errors: `{ "error": { "code", "message", "details?", "correlationId" } }`. Out-o
 | `GET /roles`, `GET /permissions`                                                                  | `role.read` or `role.assign` / signed in                   |                                                                             |
 | `POST /roles`, `PATCH /roles/:id`                                                                 | `role.manage` (org scope)                                  | system roles read-only                                                      |
 | `GET /audit-logs`                                                                                 | `audit.read`                                               | brand-scoped for brand-level holders                                        |
+
+## Phase 3 — catalogue and brand settings
+
+| Method & path                                                                          | Permission                       | Notes                                                          |
+| -------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------- |
+| `GET /course-categories?brandId=` · `POST` · `PATCH /:id`                              | `course.read` / `course.manage`  | code unique per brand                                          |
+| `GET /courses?brandId=&status=&q=` · `GET /courses/:id` · `POST` · `PATCH /:id`        | `course.read` / `course.manage`  | `listFeeMinor` in paise/fils; currency = brand currency        |
+| `GET /batches?brandId=&courseId=&status=` · `GET /batches/:id` · `POST` · `PATCH /:id` | `course.read` / `course.manage`  | dates `YYYY-MM-DD`; end ≥ start; capacity ≥ 0                  |
+| `GET/PUT /brands/:id/working-hours`                                                    | `brand.read` / `settings.manage` | PUT replaces the week; overlapping shifts rejected             |
+| `GET/POST /brands/:id/holidays` · `DELETE /holidays/:id`                               | `brand.read` / `settings.manage` | one per date                                                   |
+| `GET/PUT /brands/:id/sla-policy`                                                       | `brand.read` / `settings.manage` | checkpoints strictly increasing; REASSIGN count ≤ max attempts |
+| `GET /brands/:id/pipeline-stages` · `PATCH /pipeline-stages/:id`                       | `brand.read` / `settings.manage` | 8 fixed keys; label + required fields editable                 |
+| `GET /brands/:id/calendar/preview?start=ISO&minutes=N`                                 | `brand.read`                     | calendar vs working due time                                   |

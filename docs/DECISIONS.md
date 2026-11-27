@@ -40,6 +40,10 @@ Status: **DECIDED** = confirmed by business owner · **ASSUMED** = default chose
 | A-016 | Brand Managers may edit their own brand and manage branches/teams/users inside it; creating brands and custom roles requires organization-level scope. | SRS §2 |
 | A-017 | Anti-escalation: a user can grant a role only if they hold every permission of that role at the target scope; the organization must always keep one active Organization Admin. | SRS §2.1 |
 
+| A-018 | Default working week per brand: India Mon–Sat 09:30–18:30, UAE Mon–Fri 09:00–18:00 (brand time zone). Each brand can change shifts, add split shifts and holidays. | D-002, D-003 |
+| A-019 | Default SLA ladder per brand from the diagram: remind 5, alert team leader 15 (= first-response target), reassign 30 and 60, escalate to manager 90; all on working minutes; max 3 automatic reassignments; same executive excluded for 24 h. Editable per brand. | FR-009 |
+| A-020 | Course fees are stored in the brand's currency only (no multi-currency price lists yet). Full fee plans, discounts and instalments arrive in Phase 12. | D-002, FR-015 |
+
 ## Resolved
 
 | ID   | Resolution                                               | Date       |

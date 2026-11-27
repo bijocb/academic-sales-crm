@@ -1,6 +1,6 @@
 # Entity relationship diagram
 
-Current as of Phase 2 (migration `20261127052420_identity`). Every table except `organizations` carries
+Current as of Phase 3 (migrations `…_identity`, `…_catalog_and_settings`). Every table except `organizations` carries
 `organization_id` and is protected by row-level security. Children reference parents with composite keys
 `(organization_id, id)`, so a row can never point at another organization's record.
 
@@ -39,3 +39,28 @@ erDiagram
 | `sessions`                  | Refresh-token rotation families; hashed tokens only.                                                                                                                                                            |
 | `auth_tokens`               | Invite (7 days) / password reset (30 minutes); hashed, single-use.                                                                                                                                              |
 | `audit_logs`                | Append-only: UPDATE/DELETE/TRUNCATE blocked by trigger, and privileges revoked from `crm_app`.                                                                                                                  |
+
+## Phase 3 tables
+
+```mermaid
+erDiagram
+  brands ||--o{ course_categories : has
+  brands ||--o{ courses : offers
+  course_categories |o--o{ courses : groups
+  courses ||--o{ batches : runs
+  branches |o--o{ batches : hosts
+  brands ||--o{ working_hours : "works in"
+  brands ||--o{ holidays : closes
+  brands ||--|| sla_policies : uses
+  sla_policies ||--o{ sla_checkpoints : steps
+  brands ||--o{ pipeline_stages : defines
+```
+
+| Table                             | Notes                                                                                                                                              |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `course_categories`, `courses`    | Per brand; code unique per brand; `list_fee_minor` BIGINT minor units + `currency` (= brand currency); duration value/unit both or neither (CHECK) |
+| `batches`                         | Per course; optional branch (same brand); `start_date`/`end_date` DATE (end ≥ start CHECK); `capacity ≥ 0`                                         |
+| `working_hours`                   | ISO weekday 1–7, minutes from local midnight, start < end (CHECK); multiple shifts per day                                                         |
+| `holidays`                        | Local date per brand, unique                                                                                                                       |
+| `sla_policies`, `sla_checkpoints` | One policy per brand; ordered checkpoints with action and WORKING/CALENDAR basis                                                                   |
+| `pipeline_stages`                 | 8 fixed keys per brand; editable label and required fields                                                                                         |
