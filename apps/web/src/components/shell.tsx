@@ -1,0 +1,84 @@
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { api } from '@/lib/api';
+import { useSession } from '@/lib/session';
+
+interface NavItem {
+  href: string;
+  label: string;
+  show: (s: ReturnType<typeof useSession>) => boolean;
+}
+
+const NAV: NavItem[] = [
+  { href: '/', label: 'Dashboard', show: (s) => !s.me.user.isPlatformAdmin },
+  { href: '/brands', label: 'Brands & branches', show: (s) => s.can('brand.read') },
+  { href: '/teams', label: 'Teams', show: (s) => s.can('team.read') },
+  { href: '/users', label: 'Users', show: (s) => s.can('user.read') },
+  { href: '/roles', label: 'Roles', show: (s) => s.can('role.read') || s.can('role.assign') },
+  { href: '/audit', label: 'Audit log', show: (s) => s.can('audit.read') },
+  { href: '/platform', label: 'Organizations', show: (s) => s.me.user.isPlatformAdmin },
+];
+
+export function Shell({ children }: { children: React.ReactNode }) {
+  const session = useSession();
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const items = NAV.filter((n) => n.show(session));
+  const logout = async () => {
+    await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
+    window.location.href = '/login';
+  };
+
+  return (
+    <div className="min-h-screen lg:flex">
+      <aside
+        className={`${open ? 'block' : 'hidden'} border-b border-slate-200 bg-white lg:block lg:w-60 lg:shrink-0 lg:border-r lg:border-b-0`}
+      >
+        <div className="hidden px-5 py-5 lg:block">
+          <p className="text-xs font-semibold tracking-wide text-brand-700">ACADEMIC SALES CRM</p>
+          <p className="mt-1 truncate text-sm text-slate-600">
+            {session.me.organization?.name ?? 'Platform administration'}
+          </p>
+        </div>
+        <nav className="space-y-0.5 px-3 py-3 lg:py-0" aria-label="Main">
+          {items.map((n) => {
+            const active = n.href === '/' ? pathname === '/' : pathname.startsWith(n.href);
+            return (
+              <Link
+                key={n.href}
+                href={n.href}
+                onClick={() => setOpen(false)}
+                className={`block rounded-md px-3 py-2 text-sm ${active ? 'bg-brand-50 font-medium text-brand-700' : 'text-slate-700 hover:bg-slate-100'}`}
+              >
+                {n.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
+      <div className="min-w-0 flex-1">
+        <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:px-8">
+          <button
+            className="rounded-md px-2 py-1 text-sm ring-1 ring-slate-300 lg:hidden"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+          >
+            Menu
+          </button>
+          <div className="ml-auto flex items-center gap-3 text-sm">
+            <span className="hidden text-slate-600 sm:inline">{session.me.user.name}</span>
+            <button
+              onClick={logout}
+              className="rounded-md px-2 py-1 text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+            >
+              Sign out
+            </button>
+          </div>
+        </header>
+        <main className="px-4 py-6 lg:px-8">{children}</main>
+      </div>
+    </div>
+  );
+}

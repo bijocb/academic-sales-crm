@@ -5,6 +5,7 @@ Multi-organization, multi-brand education sales & admission CRM (India + UAE).
 Read first: `docs/SRS.md` (spec), `docs/DECISIONS.md` (overrides SRS where they differ), `docs/ARCHITECTURE.md`.
 
 ## Non-negotiable rules
+
 1. Work only on the phase the owner has approved; stop at the phase boundary.
 2. Plan before multi-file changes: files, migrations, APIs, risks, tests.
 3. Do not invent business rules. Add OPEN items to `docs/DECISIONS.md` or propose configurable defaults marked ASSUMED.
@@ -18,5 +19,24 @@ Read first: `docs/SRS.md` (spec), `docs/DECISIONS.md` (overrides SRS where they 
 11. Every business-critical workflow gets unit + integration tests; run lint, typecheck, tests and build after each phase and report exact results.
 12. Keep docs current: DECISIONS, ARCHITECTURE, ERD, API, KPI dictionary.
 
-## Commands
-(to be filled in Phase 1)
+## Layout
+
+- `apps/api` — NestJS API (+ Prisma schema/migrations in `apps/api/prisma`). DB access only via `Db.tenant()` / `Db.system()`.
+- `apps/web` — Next.js UI; calls the API through the `/api/v1` rewrite (same origin, cookie auth).
+- `packages/contracts` — zod request schemas, permission catalog, role templates (shared by API and web).
+
+## Commands (run from repo root)
+
+- `pnpm install` — install
+- `pnpm db:migrate` — apply migrations + enable `crm_app` login (needs `.env`)
+- `pnpm db:seed` — create first platform admin from `SEED_PLATFORM_ADMIN_*`
+- `pnpm db:seed:demo` — DEV ONLY demo organization (`*@demo.local`, password `DemoPass#2026`)
+- `pnpm dev:api` / `pnpm dev:web` — run locally (API :4000, web :3000)
+- `pnpm lint` · `pnpm format:check` · `pnpm typecheck` · `pnpm test` · `pnpm build` · `pnpm test:e2e`
+- New migration: `cd apps/api && npx prisma migrate dev --create-only --name <name>`; add RLS policy + grants for every new tenant table in the same migration.
+
+## Conventions
+
+- Every tenant table: `organization_id` column, RLS policy `tenant_isolation`, composite FKs `(organization_id, x_id)`.
+- Out-of-scope IDs return 404, missing permission returns 403.
+- Integration tests run serially against `crm_test` (wiped per suite).

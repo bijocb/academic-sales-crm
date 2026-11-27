@@ -1,4 +1,6 @@
-# Architecture (Phase 0 — proposed, awaiting approval)
+# Architecture
+
+Status: approved 2026-11-27. Phases 1–2 implemented.
 
 Business source: `docs/SRS.md`. Decisions: `docs/DECISIONS.md`.
 
@@ -38,19 +40,19 @@ academic-sales-crm/
 └── infra/docker/     docker-compose (postgres, redis, mailpit), Dockerfiles
 ```
 
-Change from SRS Appendix A: the three separate worker apps become one worker entrypoint in `apps/api`, so domain logic exists once.
+Changes from SRS Appendix A: the three separate worker apps become one worker entrypoint in `apps/api`, so domain logic exists once; the Prisma schema lives in `apps/api/prisma` (only the API touches the database) instead of `packages/database`.
 
 ## 3. Runtime
 
-| Component | Role |
-|---|---|
-| PostgreSQL 16 | Single source of truth. History tables append-only. |
-| Redis 7 + BullMQ | Delayed jobs (SLA checkpoints), queues (allocation, notifications, integrations), dead-letter queues. |
-| Outbox | Domain change + `outbox_events` row written in one transaction; relay pushes to BullMQ. No lost events, no events for rolled-back changes. |
-| Webhooks | Store raw payload in `webhook_events` with unique `(provider, external_event_id)` → idempotent; process asynchronously. |
-| WebSockets | Live notifications and dashboard counters. |
-| S3-compatible storage | Student documents, imports; expiring signed URLs. |
-| Clock | Injected `Clock` service everywhere; tests use a controllable clock (Phase 7 exit gate). |
+| Component             | Role                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| PostgreSQL 16         | Single source of truth. History tables append-only.                                                                                        |
+| Redis 7 + BullMQ      | Delayed jobs (SLA checkpoints), queues (allocation, notifications, integrations), dead-letter queues.                                      |
+| Outbox                | Domain change + `outbox_events` row written in one transaction; relay pushes to BullMQ. No lost events, no events for rolled-back changes. |
+| Webhooks              | Store raw payload in `webhook_events` with unique `(provider, external_event_id)` → idempotent; process asynchronously.                    |
+| WebSockets            | Live notifications and dashboard counters.                                                                                                 |
+| S3-compatible storage | Student documents, imports; expiring signed URLs.                                                                                          |
+| Clock                 | Injected `Clock` service everywhere; tests use a controllable clock (Phase 7 exit gate).                                                   |
 
 ## 4. Core data model (key decisions only — full ERD in Phase 2/4)
 
@@ -108,11 +110,11 @@ Follows SRS §12, Phases 0–15, unchanged in order. Adjustments:
 
 ## 10. Risks
 
-| Risk | Mitigation |
-|---|---|
-| Meta / Google / WhatsApp onboarding delays | Adapters + sandbox; website and import first |
-| SLA timing bugs (time zones, holidays, dual clocks) | Injected clock, table-driven tests across IST/GST boundaries |
-| Tenant data leak | RLS + scoped data layer + automated "change the ID" tests per endpoint |
-| Fake call logging defeats SLA | Telephony integration (O-06); flag manual-only logs in reports |
-| Refunds distort reports/incentives | Event-dated reporting, clawback approval, no silent recalculation |
-| Scope size | Strict phase gates; Phases 1–7 deliver the core promise |
+| Risk                                                | Mitigation                                                             |
+| --------------------------------------------------- | ---------------------------------------------------------------------- |
+| Meta / Google / WhatsApp onboarding delays          | Adapters + sandbox; website and import first                           |
+| SLA timing bugs (time zones, holidays, dual clocks) | Injected clock, table-driven tests across IST/GST boundaries           |
+| Tenant data leak                                    | RLS + scoped data layer + automated "change the ID" tests per endpoint |
+| Fake call logging defeats SLA                       | Telephony integration (O-06); flag manual-only logs in reports         |
+| Refunds distort reports/incentives                  | Event-dated reporting, clawback approval, no silent recalculation      |
+| Scope size                                          | Strict phase gates; Phases 1–7 deliver the core promise                |
