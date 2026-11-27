@@ -1,15 +1,20 @@
 /**
  * DEVELOPMENT ONLY — creates a clearly labelled demo organization for local exploration.
- * Refuses to run when NODE_ENV=production. All demo users share DEMO_PASSWORD.
+ * Refuses to run when NODE_ENV=production unless ALLOW_DEMO_SEED=true (a labelled demo
+ * deployment). All demo users share DEMO_PASSWORD (env), default below for local use only.
  */
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/auth/crypto';
 import { seedSystemRoles } from '../src/platform/organizations.service';
 
-const DEMO_PASSWORD = 'DemoPass#2026';
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'DemoPass#2026';
 
 async function main(): Promise<void> {
-  if (process.env.NODE_ENV === 'production') throw new Error('seed-demo is disabled in production');
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_SEED !== 'true') {
+    throw new Error(
+      'seed-demo is disabled in production (set ALLOW_DEMO_SEED=true only for a demo deployment)',
+    );
+  }
   const prisma = new PrismaClient();
   try {
     const passwordHash = await hashPassword(DEMO_PASSWORD);

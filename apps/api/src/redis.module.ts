@@ -15,6 +15,7 @@ export const REDIS = Symbol('REDIS');
           lazyConnect: false,
           maxRetriesPerRequest: 1,
           enableOfflineQueue: false,
+          family: 0, // IPv4 or IPv6 (Railway private network is IPv6)
         }),
     },
   ],

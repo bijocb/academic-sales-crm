@@ -3,7 +3,12 @@ import { z } from '@crm/contracts';
 const EnvSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-    API_PORT: z.coerce.number().int().default(4000),
+    API_PORT: z.coerce
+      .number()
+      .int()
+      .default(Number(process.env.PORT ?? 4000)),
+    /** Reverse proxies in front of the API (Railway edge = 1; Vercel rewrite + Railway = 2). */
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(1),
     WEB_ORIGIN: z.url().default('http://localhost:3000'),
     DATABASE_URL: z.string().min(1),
     REDIS_URL: z.string().min(1),
@@ -17,13 +22,21 @@ const EnvSchema = z
       .optional()
       .transform((v) => (v ? v : undefined)),
     MAIL_FROM: z.string().default('Academic CRM <no-reply@example.com>'),
+    /**
+     * DEMO/STAGING ONLY: allow running without SMTP in production mode; emails are written
+     * to the server log and NOT delivered. Never set on a real customer deployment.
+     */
+    ALLOW_LOG_MAILER: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((v) => v === 'true'),
     ENABLE_API_DOCS: z
       .enum(['true', 'false'])
       .optional()
       .transform((v) => v === 'true'),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === 'production' && !env.SMTP_URL) {
+    if (env.NODE_ENV === 'production' && !env.SMTP_URL && !env.ALLOW_LOG_MAILER) {
       ctx.addIssue({
         code: 'custom',
         path: ['SMTP_URL'],

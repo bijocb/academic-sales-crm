@@ -14,7 +14,7 @@ import { requestContext } from './common/request-context';
 /** Shared by main.ts and tests so both run the exact same pipeline. */
 export function configureApp(app: INestApplication, config: AppConfig): void {
   const express = app as NestExpressApplication;
-  express.set('trust proxy', 1);
+  express.set('trust proxy', config.TRUST_PROXY_HOPS);
   express.disable('x-powered-by');
   app.use(helmet());
   app.use(cookieParser());
