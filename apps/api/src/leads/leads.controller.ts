@@ -13,6 +13,10 @@ import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import {
   CreateCampaignSchema,
+  DismissDuplicateSchema,
+  LeadNoteSchema,
+  MergeDuplicateSchema,
+  UpdateLeadProfileSchema,
   CreateImportSchema,
   CreateIntakeKeySchema,
   CreateLeadSourceSchema,
@@ -35,8 +39,13 @@ import { ApiZodBody, ZBody, ZQuery } from '../common/zod';
 import { IntakeAdminService } from './intake-admin.service';
 import { LeadConfigService } from './lead-config.service';
 import { LeadsService } from './leads.service';
+import { DuplicatesService } from './duplicates.service';
 
 const BrandQuery = z.object({ brandId: z.uuid().optional() });
+const DuplicateQuery = z.object({
+  status: z.enum(['OPEN', 'MERGED', 'DISMISSED']).default('OPEN'),
+});
+const PreviewQuery = z.object({ survivor: z.enum(['A', 'B']).default('A') });
 const ExceptionQuery = PageQuerySchema.extend({
   brandId: z.uuid().optional(),
   status: z.enum(['OPEN', 'RESOLVED', 'DISCARDED']).optional(),
@@ -49,7 +58,85 @@ export class LeadsController {
     private readonly leads: LeadsService,
     private readonly config: LeadConfigService,
     private readonly admin: IntakeAdminService,
+    private readonly duplicates: DuplicatesService,
   ) {}
+
+  // ------------------------------------------------------ lead workspace
+  @Get('leads/:id/timeline')
+  timeline(@CurrentPrincipal() p: Principal, @Param('id', ParseUUIDPipe) id: string) {
+    return this.leads.timeline(requireOrg(p), id);
+  }
+
+  @Post('leads/:id/notes')
+  @ApiZodBody(LeadNoteSchema)
+  note(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZBody(LeadNoteSchema) body: z.infer<typeof LeadNoteSchema>,
+  ) {
+    return this.leads.addNote(requireOrg(p), id, body.body);
+  }
+
+  @Patch('leads/:id/profile')
+  @ApiZodBody(UpdateLeadProfileSchema)
+  profile(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZBody(UpdateLeadProfileSchema) body: z.infer<typeof UpdateLeadProfileSchema>,
+  ) {
+    return this.leads.updateProfile(requireOrg(p), id, body);
+  }
+
+  // ------------------------------------------------------------ duplicates
+  @Get('duplicates')
+  @RequirePermission('lead.merge')
+  duplicateList(
+    @CurrentPrincipal() p: Principal,
+    @ZQuery(DuplicateQuery) q: z.infer<typeof DuplicateQuery>,
+  ) {
+    return this.duplicates.list(requireOrg(p), q.status);
+  }
+
+  @Post('duplicates/scan')
+  @HttpCode(200)
+  @RequirePermission('lead.merge')
+  scan(@CurrentPrincipal() p: Principal) {
+    return this.duplicates.scan(requireOrg(p));
+  }
+
+  @Get('duplicates/:id')
+  @RequirePermission('lead.merge')
+  duplicatePreview(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZQuery(PreviewQuery) q: z.infer<typeof PreviewQuery>,
+  ) {
+    return this.duplicates.preview(requireOrg(p), id, q.survivor);
+  }
+
+  @Post('duplicates/:id/merge')
+  @HttpCode(200)
+  @RequirePermission('lead.merge')
+  @ApiZodBody(MergeDuplicateSchema)
+  merge(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZBody(MergeDuplicateSchema) body: z.infer<typeof MergeDuplicateSchema>,
+  ) {
+    return this.duplicates.merge(requireOrg(p), id, body);
+  }
+
+  @Post('duplicates/:id/dismiss')
+  @HttpCode(200)
+  @RequirePermission('lead.merge')
+  @ApiZodBody(DismissDuplicateSchema)
+  dismissDuplicate(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZBody(DismissDuplicateSchema) body: z.infer<typeof DismissDuplicateSchema>,
+  ) {
+    return this.duplicates.dismiss(requireOrg(p), id, body.note);
+  }
 
   // ---------------------------------------------------------------- leads
   @Get('leads')

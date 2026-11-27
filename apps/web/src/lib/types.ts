@@ -192,6 +192,60 @@ export interface Enquiry {
 export interface LeadDetail extends Omit<LeadRow, 'originalSource'> {
   enquiries: Enquiry[];
   previousLeadId: string | null;
+  mergedInto: { id: string; leadNumber: string } | null;
+  mergedLeads: Array<{ id: string; leadNumber: string }>;
+  openDuplicateSuggestions: number;
+  canEdit: boolean;
+  personId: string;
+  course: { id: string; name: string; code?: string } | null;
+  originalAttribution: {
+    channel: string;
+    source: { id: string; name: string } | null;
+    campaign: { id: string; name: string } | null;
+    utmSource: string | null;
+    utmMedium: string | null;
+    utmCampaign: string | null;
+    landingPage: string | null;
+    receivedAt: string;
+    isPaid: boolean;
+  } | null;
+}
+export interface TimelineItem {
+  id: string;
+  type: string;
+  at: string;
+  leadId: string;
+  actor: string | null;
+  title: string;
+  body: string | null;
+  data: Record<string, unknown> | null;
+}
+export interface DuplicatePerson {
+  id: string;
+  fullName: string;
+  phone: string | null;
+  email: string | null;
+  city: string | null;
+  createdAt: string;
+  leads: Array<{
+    id: string;
+    leadNumber: string;
+    brandId: string;
+    status: string;
+    stage: string;
+    enquiryCount: number;
+    createdAt: string;
+  }>;
+}
+export interface DuplicateCandidateRow {
+  id: string;
+  score: number;
+  reasons: string[];
+  status: string;
+  detectedAt: string;
+  resolutionNote: string | null;
+  personA: DuplicatePerson;
+  personB: DuplicatePerson;
 }
 export interface LeadSource {
   id: string;

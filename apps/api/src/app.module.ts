@@ -38,6 +38,8 @@ import { IntakeKeyResolver } from './leads/intake-keys';
 import { LeadsService } from './leads/leads.service';
 import { LeadConfigService } from './leads/lead-config.service';
 import { IntakeAdminService } from './leads/intake-admin.service';
+import { DuplicateDetector } from './leads/duplicate-detector';
+import { DuplicatesService } from './leads/duplicates.service';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -104,6 +106,8 @@ export class AppModule implements NestModule {
         LeadsService,
         LeadConfigService,
         IntakeAdminService,
+        DuplicateDetector,
+        DuplicatesService,
       ],
     };
   }

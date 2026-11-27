@@ -1,6 +1,6 @@
 # Entity relationship diagram
 
-Current as of Phase 4 (migrations `…_identity`, `…_catalog_and_settings`, `…_lead_capture`). Every table except `organizations` carries
+Current as of Phase 5 (migrations `…_identity`, `…_catalog_and_settings`, `…_lead_capture`, `…_duplicates_and_timeline`). Every table except `organizations` carries
 `organization_id` and is protected by row-level security. Children reference parents with composite keys
 `(organization_id, id)`, so a row can never point at another organization's record.
 
@@ -90,3 +90,14 @@ erDiagram
 | `intake_exceptions`         | Rejected submissions with payload + errors; OPEN → RESOLVED / DISCARDED                                                                                                        |
 | `lead_imports`              | Per upload: counters, duplicate policy, status                                                                                                                                 |
 | `outbox_events`             | `lead.created` / `enquiry.received`, written in the same transaction                                                                                                           |
+
+## Phase 5 additions
+
+| Table / column                                    | Notes                                                                                                      |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `persons.name_key`, `merged_into_id`, `merged_at` | Phone uniqueness now applies to unmerged people only; merged rows keep their contacts for matching         |
+| `leads.merged_into_lead_id`, status `MERGED`      | Merged leads keep their number and enquiries                                                               |
+| enquiry classification                            | + `EXISTING_PERSON`, `CROSS_CHANNEL_DUPLICATE`                                                             |
+| `duplicate_candidates`                            | Pair (a < b), score, reasons, OPEN/MERGED/DISMISSED; unique pair                                           |
+| `person_merges`                                   | **Append-only**: field choices, lead plan, before-snapshots, who/when/note                                 |
+| `lead_events`                                     | **Append-only** timeline events (NOTE, PROFILE_UPDATED, LEAD_MERGED, PERSON_MERGED; calls etc. in Phase 8) |

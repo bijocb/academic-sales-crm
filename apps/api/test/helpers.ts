@@ -74,7 +74,7 @@ export async function resetDatabase(owner: PrismaClient): Promise<void> {
   await owner.$transaction([
     owner.$executeRawUnsafe(`SET LOCAL session_replication_role = replica`),
     owner.$executeRawUnsafe(
-      `TRUNCATE outbox_events, org_counters, enquiries, intake_exceptions, lead_imports, intake_keys, campaigns, leads, persons, lead_sources, sla_checkpoints, sla_policies, pipeline_stages, working_hours, holidays, batches, courses, course_categories, audit_logs, auth_tokens, sessions, team_members, role_assignments, role_permissions, roles, teams, branches, users, brands, organizations CASCADE`,
+      `TRUNCATE lead_events, person_merges, duplicate_candidates, outbox_events, org_counters, enquiries, intake_exceptions, lead_imports, intake_keys, campaigns, leads, persons, lead_sources, sla_checkpoints, sla_policies, pipeline_stages, working_hours, holidays, batches, courses, course_categories, audit_logs, auth_tokens, sessions, team_members, role_assignments, role_permissions, roles, teams, branches, users, brands, organizations CASCADE`,
     ),
   ]);
 }

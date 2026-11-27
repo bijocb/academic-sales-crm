@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Badge,
   Button,
@@ -15,42 +16,18 @@ import {
   useLoad,
 } from '@/components/ui';
 import { api } from '@/lib/api';
+import { CHANNEL_LABEL, fmtDateTime as fmt, leadStatusTone as statusTone } from '@/lib/lead-format';
 import { useSession } from '@/lib/session';
-import type { Brand, Course, LeadDetail, LeadRow, LeadSource, Paged } from '@/lib/types';
-
-const CHANNEL_LABEL: Record<string, string> = {
-  META_ADS: 'Meta Ads',
-  GOOGLE_ADS: 'Google Ads',
-  WEBSITE: 'Website',
-  WHATSAPP: 'WhatsApp',
-  CALL: 'Call / walk-in',
-  REFERRAL: 'Referral',
-  EVENT: 'Event',
-  IMPORT: 'Import',
-  MANUAL: 'Manual',
-  OTHER: 'Other',
-};
-const statusTone = (s: string) =>
-  (
-    ({
-      OPEN: 'blue',
-      CONVERTED: 'green',
-      LOST: 'amber',
-      CLOSED_LOST: 'red',
-      ON_HOLD: 'slate',
-      IN_RECOVERY: 'amber',
-    }) as const
-  )[s as 'OPEN'] ?? 'slate';
-const fmt = (iso: string) => new Date(iso).toLocaleString();
+import type { Brand, Course, LeadRow, LeadSource, Paged } from '@/lib/types';
 
 export default function LeadsPage() {
   const { can } = useSession();
+  const router = useRouter();
   const brands = useLoad(() => api<Brand[]>('/brands'));
   const [brandId, setBrandId] = useState('');
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const leads = useLoad(
     () =>
@@ -75,14 +52,7 @@ export default function LeadsPage() {
       />
       {adding && brands.data && (
         <div className="mb-6">
-          <NewLead
-            brands={brands.data}
-            onDone={(id) => {
-              setAdding(false);
-              setSelected(id);
-              void leads.reload();
-            }}
-          />
+          <NewLead brands={brands.data} onDone={(id) => router.push(`/leads/${id}`)} />
         </div>
       )}
       <Card
@@ -121,9 +91,11 @@ export default function LeadsPage() {
               className="w-40"
             >
               <option value="">Any status</option>
-              {['OPEN', 'ON_HOLD', 'LOST', 'IN_RECOVERY', 'CLOSED_LOST', 'CONVERTED'].map((s) => (
-                <option key={s}>{s}</option>
-              ))}
+              {['OPEN', 'ON_HOLD', 'LOST', 'IN_RECOVERY', 'CLOSED_LOST', 'CONVERTED', 'MERGED'].map(
+                (s) => (
+                  <option key={s}>{s}</option>
+                ),
+              )}
             </Select>
           </div>
         }
@@ -147,7 +119,7 @@ export default function LeadsPage() {
             <tr
               key={l.id}
               className="cursor-pointer hover:bg-slate-50"
-              onClick={() => setSelected(l.id)}
+              onClick={() => router.push(`/leads/${l.id}`)}
             >
               <Td className="font-mono text-xs">{l.leadNumber}</Td>
               <Td className="font-medium">{l.person.fullName}</Td>
@@ -183,11 +155,6 @@ export default function LeadsPage() {
           </Button>
         </div>
       </Card>
-      {selected && (
-        <div className="mt-6">
-          <LeadPanel id={selected} brandName={brandName} onClose={() => setSelected(null)} />
-        </div>
-      )}
     </>
   );
 }
@@ -314,91 +281,6 @@ function NewLead({ brands, onDone }: { brands: Brand[]; onDone: (leadId: string)
           </Button>
         </div>
       </form>
-    </Card>
-  );
-}
-
-function LeadPanel({
-  id,
-  brandName,
-  onClose,
-}: {
-  id: string;
-  brandName: (id: string) => string;
-  onClose: () => void;
-}) {
-  const lead = useLoad(() => api<LeadDetail>(`/leads/${id}`), [id]);
-  const l = lead.data;
-  if (!l) return <ErrorText error={lead.error} />;
-  return (
-    <Card
-      title={`${l.leadNumber} · ${l.person.fullName}`}
-      actions={
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
-      }
-    >
-      <dl className="grid gap-3 text-sm sm:grid-cols-4">
-        <div>
-          <dt className="text-slate-500">Phone</dt>
-          <dd className="font-mono">{l.person.phone ?? '—'}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">Email</dt>
-          <dd>{l.person.email ?? '—'}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">Brand</dt>
-          <dd>{brandName(l.brandId)}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">Stage · status</dt>
-          <dd>
-            {l.stage.replace(/_/g, ' ').toLowerCase()} ·{' '}
-            <Badge tone={statusTone(l.status)}>{l.status}</Badge>
-          </dd>
-        </div>
-      </dl>
-      {l.person.piiMasked && (
-        <p className="mt-2 text-xs text-amber-700">Contact details are masked for your role.</p>
-      )}
-      <h3 className="mt-6 mb-2 text-sm font-semibold text-slate-700">
-        Enquiry history ({l.enquiries.length})
-      </h3>
-      <ol className="space-y-3">
-        {l.enquiries.map((e) => (
-          <li key={e.id} className="rounded-md p-3 ring-1 ring-slate-200">
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="font-medium">{fmt(e.receivedAt)}</span>
-              <Badge>{e.source?.name ?? CHANNEL_LABEL[e.channel]}</Badge>
-              {e.isPaid && <Badge tone="amber">Paid</Badge>}
-              <Badge tone={e.classification === 'NEW_LEAD' ? 'blue' : 'slate'}>
-                {e.classification.replace(/_/g, ' ').toLowerCase()}
-              </Badge>
-            </div>
-            <dl className="mt-2 grid gap-x-4 gap-y-1 text-xs text-slate-600 sm:grid-cols-3">
-              {e.course || e.courseText ? (
-                <div>Course: {e.course?.name ?? e.courseText}</div>
-              ) : null}
-              {e.campaign || e.utmCampaign ? (
-                <div>Campaign: {e.campaign?.name ?? e.utmCampaign}</div>
-              ) : null}
-              {e.utmSource ? (
-                <div>UTM: {[e.utmSource, e.utmMedium].filter(Boolean).join(' / ')}</div>
-              ) : null}
-              {e.landingPage ? <div className="truncate">Page: {e.landingPage}</div> : null}
-              <div>
-                Submitted as: {e.submittedName ?? '—'} ·{' '}
-                {e.submittedPhone ?? e.submittedEmail ?? '—'}
-              </div>
-            </dl>
-            {e.message && (
-              <p className="mt-2 whitespace-pre-line text-sm text-slate-700">{e.message}</p>
-            )}
-          </li>
-        ))}
-      </ol>
     </Card>
   );
 }

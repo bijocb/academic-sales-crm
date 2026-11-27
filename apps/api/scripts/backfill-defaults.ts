@@ -2,6 +2,7 @@
 import { PrismaClient } from '@prisma/client';
 import { resolveDatabaseEnv } from '../src/db-env';
 import { ensureBrandDefaults } from '../src/settings/brand-defaults';
+import { nameKey } from '../src/leads/duplicate-rules';
 
 async function main(): Promise<void> {
   resolveDatabaseEnv();
@@ -14,6 +15,13 @@ async function main(): Promise<void> {
       });
       let changed = 0;
       for (const b of brands) if ((await ensureBrandDefaults(tx, b)).created.length) changed++;
+      // Phase 5: name keys for duplicate suggestions.
+      const unkeyed = await tx.person.findMany({
+        where: { nameKey: null },
+        select: { id: true, fullName: true },
+      });
+      for (const p of unkeyed)
+        await tx.person.update({ where: { id: p.id }, data: { nameKey: nameKey(p.fullName) } });
       return changed;
     });
     console.log(`Brand defaults backfilled for ${n} brand(s)`);

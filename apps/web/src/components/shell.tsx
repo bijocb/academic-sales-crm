@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { href: '/leads', label: 'Leads', show: (s) => s.can('lead.read') || s.can('lead.read_own') },
   { href: '/leads/import', label: 'Import leads', show: (s) => s.can('lead.import') },
   { href: '/leads/exceptions', label: 'Rejected leads', show: (s) => s.can('lead.import') },
+  { href: '/leads/duplicates', label: 'Possible duplicates', show: (s) => s.can('lead.merge') },
   {
     href: '/lead-sources',
     label: 'Sources & campaigns',

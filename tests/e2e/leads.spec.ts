@@ -24,7 +24,7 @@ test('brand manager captures leads manually and by CSV import; bad rows reach th
   await page.getByLabel('Mobile').fill(`98${run}01`);
   await page.getByRole('button', { name: 'Save lead' }).click();
   await expect(page.getByRole('heading', { name: new RegExp(`E2E Walk-in ${run}`) })).toBeVisible();
-  await expect(page.getByText('Enquiry history (1)')).toBeVisible();
+  await expect(page.getByText('Timeline · 1 enquiry')).toBeVisible();
 
   // CSV import with one invalid row
   await page.getByRole('link', { name: 'Import leads' }).click();

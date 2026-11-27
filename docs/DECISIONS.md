@@ -50,6 +50,10 @@ Status: **DECIDED** = confirmed by business owner · **ASSUMED** = default chose
 | A-024 | Leads have no owner until Phase 6 allocation. A user with `lead.read_own` sees leads they own or entered personally. Marketing roles without `pii.view_full` see masked phones/emails. | FR-007, §2.1 |
 | A-025 | Meta Lead Ads and WhatsApp connectors wait for the owner's Meta app / WhatsApp Business account (O-04, O-06). Until then Meta leads can arrive via the intake API (e.g. Zapier/Make) and are attributed with channel META_ADS through a Meta source key. | FR-003, rule 10 |
 
+| A-026 | A new enquiry on the same active lead from a different channel within 24 hours is classified CROSS_CHANNEL_DUPLICATE (one ad click submitted twice); otherwise EXISTING_LEAD. A known person's first lead in another brand is EXISTING_PERSON. | FR-005 |
+| A-027 | Duplicate suggestions score: same email 0.6, phone one digit/swap apart 0.5, same normalized name 0.3 (+0.1 same city), shared name word 0.15; ≥ 0.6 is suggested. A common name alone is never suggested. Dismissed pairs are never re-raised. Changing a phone to another person's number is refused and raises a SAME_PHONE suggestion. | FR-005 |
+| A-028 | Merge keeps both person rows (the merged one marked, original IDs kept); where both have an active lead in a brand the older lead survives and the newer becomes MERGED. Enquiries are never modified. Merging requires `lead.merge` over every brand involved. Un-merge is not offered (history is preserved in `person_merges`). | FR-005 |
+
 ## Resolved
 
 | ID   | Resolution                                               | Date       |

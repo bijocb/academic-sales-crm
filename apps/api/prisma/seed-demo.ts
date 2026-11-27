@@ -13,6 +13,7 @@ import { SystemClock } from '../src/common/clock';
 import { Db } from '../src/db/db.service';
 import type { PrismaService } from '../src/db/prisma.service';
 import { IntakeService } from '../src/leads/intake.service';
+import { DuplicateDetector } from '../src/leads/duplicate-detector';
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'DemoPass#2026';
 
@@ -255,6 +256,7 @@ async function seedDemoLeads(prisma: PrismaClient): Promise<void> {
     new Db(prisma as unknown as PrismaService),
     new SystemClock(),
     new AuditService(),
+    new DuplicateDetector(),
   );
   const brand = (code: string) => org.brands.find((b) => b.code === code)!;
   const src = (code: string, channel: string) =>
@@ -322,6 +324,16 @@ async function seedDemoLeads(prisma: PrismaClient): Promise<void> {
       'INST-AE',
       'REFERRAL',
       { name: '[DEMO] Priya Sharma', phone: '+971 55 600 0002', course: 'Project Management' },
+    ],
+    [
+      'ACAD-IN',
+      'MANUAL',
+      {
+        name: '[DEMO] Menon Ananya',
+        phone: '9846000010',
+        city: 'Kochi',
+        message: 'Walk-in; possibly the same student as the website enquiry',
+      },
     ],
   ];
   let i = 0;

@@ -38,6 +38,11 @@ Read first: `docs/SRS.md` (spec), `docs/DECISIONS.md` (overrides SRS where they 
   then append CHECKs, `GRANT … TO crm_app` and the RLS `tenant_isolation` block for every new tenant table, and run `pnpm db:migrate`.
 - New brand-level configuration needs a default in `src/settings/brand-defaults.ts` (back-filled on every deploy).
 
+## Local gotchas
+
+- `ss` is not installed in the dev container: stop servers with `pkill -f dist/main.js; pkill -f next-server` before
+  `pnpm test:e2e`, otherwise an old build keeps serving. Login rate limit is 10/min: wait 60 s between e2e runs.
+
 ## Conventions
 
 - Every tenant table: `organization_id` column, RLS policy `tenant_isolation`, composite FKs `(organization_id, x_id)`.

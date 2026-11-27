@@ -147,3 +147,27 @@ export const LeadListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(50),
 });
+
+// ---------------------------------------------------------------- Phase 5
+
+export const LeadNoteSchema = z.object({ body: z.string().trim().min(1).max(5000) });
+
+export const UpdateLeadProfileSchema = z
+  .object({
+    fullName: z.string().trim().min(1).max(200),
+    phone: z.string().trim().max(40).nullable(),
+    email: z.string().trim().max(254).nullable(),
+    city: z.string().trim().max(100).nullable(),
+    language: z.string().trim().max(20).nullable(),
+    courseId: uuid.nullable(),
+  })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update' });
+
+const side = z.enum(['A', 'B']);
+export const MergeDuplicateSchema = z.object({
+  survivor: side,
+  fields: z.object({ fullName: side, phone: side, email: side, city: side }),
+  note: z.string().trim().max(500).optional(),
+});
+export const DismissDuplicateSchema = z.object({ note: z.string().trim().min(3).max(500) });

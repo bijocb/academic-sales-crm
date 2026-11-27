@@ -6,6 +6,11 @@ import { AuditService } from '../audit/audit.service';
 import { Clock } from '../common/clock';
 import { Db, Tx } from '../db/db.service';
 import { dedupKeyFor, FieldIssue, normalizeEmail, normalizePhone } from './normalize';
+import { DuplicateDetector } from './duplicate-detector';
+import { nameKey } from './duplicate-rules';
+
+/** Same active lead, different channel within this window ⇒ CROSS_CHANNEL_DUPLICATE (A-026). */
+export const CROSS_CHANNEL_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export interface IngestOrigin {
   organizationId: string;
@@ -62,6 +67,7 @@ export class IntakeService {
     private readonly db: Db,
     private readonly clock: Clock,
     private readonly audit: AuditService,
+    private readonly duplicates: DuplicateDetector,
   ) {}
 
   async ingest(origin: IngestOrigin, input: LeadInput): Promise<IngestResult> {
@@ -190,11 +196,15 @@ export class IntakeService {
 
     // 3. Person (exact phone, else exact email).
     let person = await this.findPerson(tx, v);
+    const knownPerson = !!person;
+    let contactChanged = false;
     if (!person) {
+      contactChanged = true;
       person = await tx.person.create({
         data: {
           organizationId,
           fullName: v.name,
+          nameKey: nameKey(v.name),
           phoneE164: v.phoneE164,
           phoneRaw: input.phone,
           email: v.email,
@@ -208,19 +218,27 @@ export class IntakeService {
       if (
         !person.phoneE164 &&
         v.phoneE164 &&
-        !(await tx.person.findFirst({ where: { phoneE164: v.phoneE164 } }))
+        !(await tx.person.findFirst({ where: { phoneE164: v.phoneE164, mergedIntoId: null } }))
       ) {
         fill.phoneE164 = v.phoneE164;
         fill.phoneRaw = input.phone;
       }
       if (!person.city && input.city) fill.city = input.city;
-      if (Object.keys(fill).length)
+      if (Object.keys(fill).length) {
         person = await tx.person.update({ where: { id: person.id }, data: fill });
+        contactChanged = true;
+      }
     }
+    if (contactChanged) await this.duplicates.detectFor(tx, person.id, now);
 
     // 4. Lead: one active lead per person per brand.
     let lead = await this.activeLead(tx, brandId, person.id);
-    let classification: 'NEW_LEAD' | 'EXISTING_LEAD' | 'RETURNING_LEAD';
+    let classification:
+      | 'NEW_LEAD'
+      | 'EXISTING_PERSON'
+      | 'EXISTING_LEAD'
+      | 'CROSS_CHANNEL_DUPLICATE'
+      | 'RETURNING_LEAD';
     if (lead) {
       if (origin.duplicatePolicy === 'SKIP_EXISTING') {
         return {
@@ -230,7 +248,17 @@ export class IntakeService {
           warnings: v.warnings,
         };
       }
-      classification = 'EXISTING_LEAD';
+      const last = await tx.enquiry.findFirst({
+        where: { leadId: lead.id },
+        orderBy: { receivedAt: 'desc' },
+        select: { channel: true, receivedAt: true },
+      });
+      classification =
+        last &&
+        last.channel !== origin.channel &&
+        Math.abs(receivedAt.getTime() - last.receivedAt.getTime()) <= CROSS_CHANNEL_WINDOW_MS
+          ? 'CROSS_CHANNEL_DUPLICATE'
+          : 'EXISTING_LEAD';
       lead = await tx.lead.update({
         where: { id: lead.id },
         data: {
@@ -244,7 +272,7 @@ export class IntakeService {
         where: { brandId, personId: person.id },
         orderBy: { createdAt: 'desc' },
       });
-      classification = previous ? 'RETURNING_LEAD' : 'NEW_LEAD';
+      classification = previous ? 'RETURNING_LEAD' : knownPerson ? 'EXISTING_PERSON' : 'NEW_LEAD';
       lead = await tx.lead.create({
         data: {
           organizationId,
@@ -303,7 +331,8 @@ export class IntakeService {
       },
     });
 
-    const created = classification !== 'EXISTING_LEAD';
+    const created =
+      classification !== 'EXISTING_LEAD' && classification !== 'CROSS_CHANNEL_DUPLICATE';
     await tx.outboxEvent.create({
       data: {
         organizationId,
@@ -403,14 +432,21 @@ export class IntakeService {
     };
   }
 
+  /** Exact phone, else exact email. Contacts of merged people resolve to the surviving person. */
   private async findPerson(tx: Tx, v: { phoneE164?: string; email?: string }) {
-    if (v.phoneE164) {
-      const byPhone = await tx.person.findFirst({ where: { phoneE164: v.phoneE164 } });
-      if (byPhone) return byPhone;
+    const activeFirst = [
+      { mergedIntoId: { sort: 'asc' as const, nulls: 'first' as const } },
+      { createdAt: 'asc' as const },
+    ];
+    let found = v.phoneE164
+      ? await tx.person.findFirst({ where: { phoneE164: v.phoneE164 }, orderBy: activeFirst })
+      : null;
+    if (!found && v.email)
+      found = await tx.person.findFirst({ where: { email: v.email }, orderBy: activeFirst });
+    for (let hops = 0; found?.mergedIntoId && hops < 10; hops++) {
+      found = await tx.person.findUnique({ where: { id: found.mergedIntoId } });
     }
-    if (v.email)
-      return tx.person.findFirst({ where: { email: v.email }, orderBy: { createdAt: 'asc' } });
-    return null;
+    return found;
   }
 
   private activeLead(tx: Tx, brandId: string, personId: string) {

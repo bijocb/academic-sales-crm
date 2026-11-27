@@ -31,7 +31,7 @@ test('brand manager adds a course and a batch, and previews SLA due times', asyn
   await expect(page.getByRole('cell', { name: /Pilot batch/ })).toBeVisible();
 
   await page.getByRole('link', { name: 'Brand settings' }).click();
-  await expect(page.getByText('Working hours')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Working hours' })).toBeVisible();
   await page.getByLabel(/Lead arrives/).fill('2026-11-27T22:00');
   await page.getByLabel('SLA minutes').fill('15');
   await page.getByRole('button', { name: 'Calculate' }).click();
