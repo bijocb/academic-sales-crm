@@ -1202,3 +1202,155 @@ model Job {
   @@index([organizationId, status])
   @@map("jobs")
 }
+
+// ---------------------------------------------------------------- Phase 8
+
+enum ActivityType {
+  CALL
+  WHATSAPP
+  EMAIL
+  SMS
+}
+
+enum ActivityDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum TemplateStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+}
+
+enum AppointmentMode {
+  IN_PERSON
+  PHONE
+  VIDEO
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
+
+/// Append-only interaction history (FR-010). UPDATE/DELETE blocked by trigger.
+model Activity {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  brandId        String            @map("brand_id") @db.Uuid
+  leadId         String            @map("lead_id") @db.Uuid
+  personId       String            @map("person_id") @db.Uuid
+  type           ActivityType
+  direction      ActivityDirection
+  actorUserId    String?           @map("actor_user_id") @db.Uuid
+  occurredAt     DateTime          @map("occurred_at") @db.Timestamptz(3)
+  startedAt      DateTime?         @map("started_at") @db.Timestamptz(3)
+  endedAt        DateTime?         @map("ended_at") @db.Timestamptz(3)
+  durationSec    Int?              @map("duration_sec")
+  outcome        String?
+  subject        String?
+  body           String?
+  templateId     String?           @map("template_id") @db.Uuid
+  provider       String?
+  providerRef    String?           @map("provider_ref")
+  taskId         String?           @map("task_id") @db.Uuid
+  createdAt      DateTime          @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, leadId, occurredAt])
+  @@index([organizationId, actorUserId, occurredAt])
+  @@map("activities")
+}
+
+/// Delivery tracking for an outbound message activity (mutable state; history in message_events).
+model OutboundMessage {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  brandId        String        @map("brand_id") @db.Uuid
+  leadId         String        @map("lead_id") @db.Uuid
+  activityId     String        @unique @map("activity_id") @db.Uuid
+  channel        ActivityType
+  recipient      String
+  status         MessageStatus @default(QUEUED)
+  provider       String
+  providerRef    String?       @map("provider_ref")
+  attempts       Int           @default(0)
+  lastError      String?       @map("last_error")
+  senderUserId   String?       @map("sender_user_id") @db.Uuid
+  createdAt      DateTime      @map("created_at") @db.Timestamptz(3)
+  sentAt         DateTime?     @map("sent_at") @db.Timestamptz(3)
+  deliveredAt    DateTime?     @map("delivered_at") @db.Timestamptz(3)
+  readAt         DateTime?     @map("read_at") @db.Timestamptz(3)
+  failedAt       DateTime?     @map("failed_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([provider, providerRef])
+  @@index([organizationId, leadId, createdAt])
+  @@map("outbound_messages")
+}
+
+/// Append-only: every send attempt result and provider receipt.
+model MessageEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  messageId      String   @map("message_id") @db.Uuid
+  type           String
+  status         String?
+  detail         String?
+  occurredAt     DateTime @map("occurred_at") @db.Timestamptz(3)
+
+  @@index([organizationId, messageId, occurredAt])
+  @@map("message_events")
+}
+
+model MessageTemplate {
+  id                   String         @id @default(uuid()) @db.Uuid
+  organizationId       String         @map("organization_id") @db.Uuid
+  brandId              String         @map("brand_id") @db.Uuid
+  channel              ActivityType
+  name                 String
+  language             String         @default("en")
+  subject              String?
+  body                 String
+  providerTemplateName String?        @map("provider_template_name")
+  status               TemplateStatus @default(DRAFT)
+  approvedById         String?        @map("approved_by_id") @db.Uuid
+  approvedAt           DateTime?      @map("approved_at") @db.Timestamptz(3)
+  createdAt            DateTime       @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([brandId, channel, name, language])
+  @@map("message_templates")
+}
+
+model Appointment {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  brandId        String            @map("brand_id") @db.Uuid
+  leadId         String            @map("lead_id") @db.Uuid
+  counsellorId   String            @map("counsellor_id") @db.Uuid
+  startsAt       DateTime          @map("starts_at") @db.Timestamptz(3)
+  endsAt         DateTime          @map("ends_at") @db.Timestamptz(3)
+  mode           AppointmentMode
+  location       String?
+  status         AppointmentStatus @default(SCHEDULED)
+  summary        String?
+  cancelReason   String?           @map("cancel_reason")
+  createdById    String?           @map("created_by_id") @db.Uuid
+  createdAt      DateTime          @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([organizationId, counsellorId, startsAt])
+  @@index([organizationId, leadId, startsAt])
+  @@map("appointments")
+}

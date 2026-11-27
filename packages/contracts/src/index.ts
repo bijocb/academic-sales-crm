@@ -4,4 +4,5 @@ export * from './catalog';
 export * from './leads';
 export * from './allocation';
 export * from './tasks';
+export * from './engagement';
 export { z } from 'zod';

@@ -78,6 +78,14 @@ Changes from SRS Appendix A: the three separate worker apps become one worker en
 4. Hold pauses (consumed minutes saved, generation bumped, pending jobs cancelled); resume schedules what is left.
 5. A call task outcome resolves the instance and stores both clocks (D-003, A-011, A-032).
 
+## 5a. Engagement (Phase 8)
+
+- Every interaction is an append-only `activities` row; delivery tracking lives beside it (`outbound_messages` +
+  append-only `message_events`). The lead timeline merges enquiries, lead events and activities.
+- Providers sit behind `WhatsAppProvider` / `TelephonyProvider`; sandbox adapters are registered only when
+  `NODE_ENV !== 'production'`. Sending is a `message.send` job: temporary errors retry with backoff, permanent errors
+  fail at once, exhausted retries fail the message and dead-letter the job. Receipts only move status forward.
+
 ## 6. Allocation
 
 Filter → rank → pick → record:

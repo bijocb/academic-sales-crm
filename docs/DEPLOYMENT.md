@@ -26,6 +26,8 @@ role, creates the platform admin (`SEED_PLATFORM_ADMIN_*`) and — because `ALLO
   - `apps/api/vercel.json` adds a daily Vercel Cron as a backstop (Hobby plans allow one run per day; on Pro change
     the schedule to `* * * * *`).
   - On any long-lived host (`pnpm start`, Docker) the in-process worker runs every 15 s (`WORKER_MODE=interval`).
+- WhatsApp and click-to-call show as "not configured" in production until a provider is chosen (O-06); sandbox
+  adapters never run there. Calls are logged manually; email goes through the configured mailer.
 - Login rate limiting is per function instance (in memory) until Redis is added.
 
 ## Container alternative

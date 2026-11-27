@@ -122,3 +122,13 @@ erDiagram
 | `sla_instances` | First-response clock per lead: policy snapshot, state, fired checkpoints, generation, consumed minutes, both clocks on resolution |
 | `sla_events`    | **Append-only**: started, checkpoint, reminder/alert sent, reassigned/failed, breached, escalated, paused/resumed, resolved       |
 | `jobs`          | Background job queue: unique key, status PENDING/RUNNING/DONE/DEAD/CANCELLED, attempts, last error                                |
+
+## Phase 8 additions
+
+| Table               | Notes                                                                                                                                          |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activities`        | **Append-only** interaction history: call / WhatsApp / email / SMS, direction, actor, times, outcome, content, provider reference, linked task |
+| `outbound_messages` | Delivery state of an outbound message: QUEUED → SENT → DELIVERED → READ, or FAILED; attempts, last error; unique (provider, provider_ref)      |
+| `message_events`    | **Append-only**: queued, sent, retry, failed, every provider receipt (applied or ignored)                                                      |
+| `message_templates` | Per brand and channel; DRAFT / APPROVED / ARCHIVED; provider template name                                                                     |
+| `appointments`      | Counselling: counsellor, start/end, mode, place or link, SCHEDULED / COMPLETED / NO_SHOW / CANCELLED, summary                                  |

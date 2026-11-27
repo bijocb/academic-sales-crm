@@ -18,6 +18,7 @@ import { useSession } from '@/lib/session';
 import type { Brand, Course, LeadAssignmentRow, LeadDetail, TimelineItem } from '@/lib/types';
 import { AssignLead } from '@/components/assign-lead';
 import { LeadWork } from '@/components/task-panel';
+import { EngagePanel } from '@/components/engage-panel';
 
 const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
   ENQUIRY: 'blue',
@@ -32,6 +33,12 @@ const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
   SLA_BREACHED: 'amber',
   SLA_ESCALATED: 'amber',
   LEAD_ON_HOLD: 'amber',
+  CALL: 'blue',
+  WHATSAPP: 'green',
+  EMAIL: 'blue',
+  OPTED_OUT: 'amber',
+  APPOINTMENT_SCHEDULED: 'blue',
+  APPOINTMENT_COMPLETED: 'green',
 };
 
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -240,6 +247,15 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
 
         <div className="space-y-6 lg:col-span-2">
           {l.status !== 'MERGED' && (
+            <EngagePanel
+              leadId={l.id}
+              brandId={l.brandId}
+              doNotContact={l.person.doNotContact}
+              canEdit={l.canEdit}
+              onChanged={() => void Promise.all([lead.reload(), timeline.reload()])}
+            />
+          )}
+          {l.status !== 'MERGED' && (
             <LeadWork
               key={`${l.ownerId ?? 'none'}:${l.status}`}
               leadId={l.id}
@@ -273,6 +289,11 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
                       {item.title}
                       {item.data?.courseText ? ` · ${String(item.data.courseText)}` : ''}
                       {item.data?.utmCampaign ? ` · ${String(item.data.utmCampaign)}` : ''}
+                    </p>
+                  )}
+                  {item.data?.messageStatus === 'FAILED' && (
+                    <p className="mt-1 text-xs text-red-700">
+                      Not delivered{item.data.error ? `: ${String(item.data.error)}` : ''}
                     </p>
                   )}
                   {item.body && (

@@ -52,6 +52,11 @@ import { TaskCoreService } from './work/task-core.service';
 import { SlaHandlersService } from './work/sla-handlers.service';
 import { WorkService } from './work/work.service';
 import { WorkController } from './work/work.controller';
+import { EngagementController } from './engagement/engagement.controller';
+import { EngagementService } from './engagement/engagement.service';
+import { AppointmentsService } from './engagement/appointments.service';
+import { TemplatesService } from './engagement/templates.service';
+import { buildProviderRegistry, ProviderRegistry } from './engagement/providers';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -103,6 +108,7 @@ export class AppModule implements NestModule {
         LeadsController,
         AllocationController,
         WorkController,
+        EngagementController,
         InternalController,
       ],
       providers: [
@@ -132,6 +138,14 @@ export class AppModule implements NestModule {
         TaskCoreService,
         SlaHandlersService,
         WorkService,
+        EngagementService,
+        AppointmentsService,
+        TemplatesService,
+        {
+          provide: ProviderRegistry,
+          useFactory: (c: AppConfig) => buildProviderRegistry(c.NODE_ENV),
+          inject: [APP_CONFIG],
+        },
       ],
     };
   }

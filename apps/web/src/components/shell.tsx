@@ -21,6 +21,11 @@ const NAV: NavItem[] = [
     show: (s) => !s.me.user.isPlatformAdmin && (s.can('lead.read') || s.can('lead.read_own')),
   },
   {
+    href: '/appointments',
+    label: 'Appointments',
+    show: (s) => !s.me.user.isPlatformAdmin && (s.can('lead.read') || s.can('lead.read_own')),
+  },
+  {
     href: '/sla',
     label: 'SLA monitor',
     show: (s) => s.can('task.manage') || s.can('allocation.manage'),
@@ -37,6 +42,11 @@ const NAV: NavItem[] = [
     href: '/lead-sources',
     label: 'Sources & campaigns',
     show: (s) => s.can('campaign.manage') || s.can('integration.manage'),
+  },
+  {
+    href: '/templates',
+    label: 'Message templates',
+    show: (s) => s.can('campaign.manage') || s.can('settings.manage'),
   },
   { href: '/brands', label: 'Brands & branches', show: (s) => s.can('brand.read') },
   { href: '/teams', label: 'Teams', show: (s) => s.can('team.read') },

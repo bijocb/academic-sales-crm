@@ -248,15 +248,26 @@ export class LeadsService {
     return this.db.tenant(p.organizationId, async (tx) => {
       const lead = await this.visibleLead(tx, p, id);
       const ids = await this.historyLeadIds(tx, id);
-      const [enquiries, events] = await Promise.all([
+      const [enquiries, events, activities] = await Promise.all([
         tx.enquiry.findMany({
           where: { leadId: { in: ids } },
           include: { source: { select: { name: true } } },
         }),
         tx.leadEvent.findMany({ where: { leadId: { in: ids } } }),
+        tx.activity.findMany({ where: { leadId: { in: ids } } }),
       ]);
+      const messages = new Map(
+        (
+          await tx.outboundMessage.findMany({
+            where: { activityId: { in: activities.map((a) => a.id) } },
+            select: { activityId: true, status: true, lastError: true },
+          })
+        ).map((m) => [m.activityId, m]),
+      );
       const actorIds = [
-        ...new Set(events.map((e) => e.actorUserId).filter((x): x is string => !!x)),
+        ...new Set(
+          [...events, ...activities].map((e) => e.actorUserId).filter((x): x is string => !!x),
+        ),
       ];
       const actors = new Map(
         (
@@ -293,6 +304,32 @@ export class LeadsService {
           body: e.body,
           data: e.data,
         })),
+        ...activities.map((a) => {
+          const m = messages.get(a.id);
+          const label = { CALL: 'call', WHATSAPP: 'WhatsApp', EMAIL: 'email', SMS: 'SMS' }[a.type];
+          const parts = [
+            `${a.direction === 'INBOUND' ? 'Inbound' : 'Outbound'} ${label}`,
+            a.outcome ? a.outcome.replace(/_/g, ' ').toLowerCase() : null,
+            a.durationSec != null ? `${Math.round(a.durationSec / 60)} min` : null,
+            m ? m.status.toLowerCase() : null,
+          ].filter(Boolean);
+          return {
+            id: a.id,
+            type: a.type,
+            at: a.occurredAt,
+            leadId: a.leadId,
+            actor: a.actorUserId ? (actors.get(a.actorUserId) ?? null) : null,
+            title: parts.join(' · '),
+            body: a.subject ? `${a.subject}\n${a.body ?? ''}` : a.body,
+            data: {
+              direction: a.direction,
+              outcome: a.outcome,
+              durationSec: a.durationSec,
+              messageStatus: m?.status ?? null,
+              error: m?.lastError ?? null,
+            } as Record<string, unknown>,
+          };
+        }),
       ];
       return items.sort((x, y) => y.at.getTime() - x.at.getTime());
     });

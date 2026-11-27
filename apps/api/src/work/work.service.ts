@@ -25,6 +25,7 @@ import { LeadsService } from '../leads/leads.service';
 import { SettingsService } from '../settings/settings.service';
 import { ACTIVE_STATES, SlaClockService } from './sla-clock.service';
 import { TaskCoreService } from './task-core.service';
+import { recordActivity } from '../engagement/activity-writer';
 
 const WORKABLE = ['OPEN', 'ON_HOLD', 'IN_RECOVERY'];
 
@@ -262,6 +263,20 @@ export class WorkService {
         now,
         { outcome: input.outcome },
       );
+      // Phase 8: a completed call task is also a call in the interaction history.
+      if (CALL_TASK_TYPES.includes(task.type))
+        await recordActivity(tx, {
+          lead,
+          type: 'CALL',
+          direction: 'OUTBOUND',
+          actorUserId: p.userId,
+          now,
+          startedAt: now,
+          outcome: input.outcome,
+          body: input.notes ?? null,
+          provider: 'manual',
+          taskId: task.id,
+        });
       // A-011: any call attempt is the first response; "connected" is kept as the outcome.
       const sla = CALL_TASK_TYPES.includes(task.type)
         ? await this.sla.resolve(tx, lead.id, {
