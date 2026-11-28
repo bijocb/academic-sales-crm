@@ -143,6 +143,7 @@ async function main(): Promise<void> {
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
       await seedDemoCatalog(tx);
+      await seedDemoTemplates(tx);
     });
     await seedDemoLeads(prisma);
   } finally {
@@ -358,3 +359,122 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+/** Demo quick-message templates per situation and channel, and brand contact details (idempotent). */
+async function seedDemoTemplates(tx: Tx): Promise<void> {
+  const org = await tx.organization.findUnique({ where: { slug: 'demo-education' } });
+  if (!org) return;
+  const brands = await tx.brand.findMany({ where: { organizationId: org.id } });
+  const T: Array<[string, 'WHATSAPP' | 'EMAIL' | 'SMS', string, string | null, string]> = [
+    [
+      'Course details',
+      'WHATSAPP',
+      'COURSE_DETAILS',
+      null,
+      'Hi {{first_name}}, thanks for your interest in {{course}} ({{course_mode}}, {{course_duration}}). Fee: {{course_fee}}. Next batch starts {{next_batch}}. Questions? Reply here or call {{brand_phone}}. – {{owner_name}}, {{brand}}',
+    ],
+    [
+      'Course details',
+      'EMAIL',
+      'COURSE_DETAILS',
+      '{{course}} at {{brand}} — course details',
+      'Dear {{full_name}},\n\nThank you for your interest in {{course}}.\n\nMode: {{course_mode}}\nDuration: {{course_duration}}\nFee: {{course_fee}}\nNext batch: {{next_batch}}\n\nMore at {{brand_website}}.\n\nRegards,\n{{owner_name}}\n{{brand}} · {{brand_phone}}',
+    ],
+    [
+      'Course details',
+      'SMS',
+      'COURSE_DETAILS',
+      null,
+      '{{brand}}: {{course}} fee {{course_fee}}, next batch {{next_batch}}. Call {{brand_phone}}.',
+    ],
+    [
+      'College details',
+      'WHATSAPP',
+      'COLLEGE_DETAILS',
+      null,
+      'Hi {{first_name}}, {{brand}} is at {{brand_address}}. Website: {{brand_website}} · Phone: {{brand_phone}}. You are welcome to visit us!',
+    ],
+    [
+      'College details',
+      'EMAIL',
+      'COLLEGE_DETAILS',
+      'About {{brand}}',
+      'Dear {{full_name}},\n\n{{brand}}\n{{brand_address}}\nPhone: {{brand_phone}}\nE-mail: {{brand_email}}\nWebsite: {{brand_website}}\n\nWe look forward to meeting you.\n{{owner_name}}',
+    ],
+    [
+      'Follow-up',
+      'WHATSAPP',
+      'FOLLOW_UP',
+      null,
+      'Hi {{first_name}}, just checking in about {{course}}. Shall I book a counselling call for you? – {{owner_name}}, {{brand}}',
+    ],
+    [
+      'Follow-up',
+      'EMAIL',
+      'FOLLOW_UP',
+      'Following up on {{course}}',
+      'Dear {{full_name}},\n\nI wanted to follow up on your enquiry about {{course}}. Reply to this e-mail or call {{brand_phone}} with any questions.\n\nRegards,\n{{owner_name}}, {{brand}}',
+    ],
+    [
+      'Follow-up',
+      'SMS',
+      'FOLLOW_UP',
+      null,
+      '{{brand}}: Hi {{first_name}}, any questions about {{course}}? Call {{owner_name}} on {{brand_phone}}.',
+    ],
+    [
+      'Fee details',
+      'WHATSAPP',
+      'FEE_DETAILS',
+      null,
+      'Hi {{first_name}}, your {{course}} fee: total {{fee_total}}, paid {{fee_paid}}, outstanding {{fee_outstanding}}. Next instalment {{next_due_amount}} due {{next_due_date}}. – {{brand}}',
+    ],
+    [
+      'Fee details',
+      'EMAIL',
+      'FEE_DETAILS',
+      'Your fee summary — {{course}}',
+      'Dear {{full_name}},\n\nTotal fee: {{fee_total}}\nPaid: {{fee_paid}}\nOutstanding: {{fee_outstanding}}\nNext instalment: {{next_due_amount}} by {{next_due_date}}\n\nRegards,\n{{brand}} accounts · {{brand_phone}}',
+    ],
+    [
+      'Fee details',
+      'SMS',
+      'FEE_DETAILS',
+      null,
+      '{{brand}}: fee due {{next_due_amount}} by {{next_due_date}}. Outstanding {{fee_outstanding}}.',
+    ],
+  ];
+  for (const b of brands) {
+    if (!b.contactPhone)
+      await tx.brand.update({
+        where: { id: b.id },
+        data: {
+          contactPhone: b.country === 'IN' ? '+91 484 400 1000' : '+971 4 400 1000',
+          contactEmail: `admissions@${b.code.toLowerCase()}.demo.local`,
+          website: `https://${b.code.toLowerCase()}.demo.local`,
+          address: b.country === 'IN' ? '[DEMO] MG Road, Kochi' : '[DEMO] Knowledge Park, Dubai',
+        },
+      });
+    for (const [name, channel, category, subject, body] of T) {
+      const exists = await tx.messageTemplate.findFirst({
+        where: { brandId: b.id, channel, name: `[DEMO] ${name}`, language: 'en' },
+      });
+      if (exists) continue;
+      await tx.messageTemplate.create({
+        data: {
+          organizationId: org.id,
+          brandId: b.id,
+          channel,
+          category,
+          name: `[DEMO] ${name}`,
+          subject,
+          body,
+          status: 'APPROVED',
+          approvedAt: new Date(),
+          createdAt: new Date(),
+        },
+      });
+    }
+  }
+  console.log('Demo message templates ensured');
+}

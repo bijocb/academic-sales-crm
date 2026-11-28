@@ -79,8 +79,19 @@ export const CreateBrandSchema = z.object({
   timezone: timezone.optional(),
   currency: z.enum(CURRENCIES).optional(),
 });
+const optText = (max: number) => z.string().trim().max(max).nullable();
 export const UpdateBrandSchema = z
-  .object({ name, timezone, currency: z.enum(CURRENCIES), status: z.enum(['ACTIVE', 'ARCHIVED']) })
+  .object({
+    name,
+    timezone,
+    currency: z.enum(CURRENCIES),
+    status: z.enum(['ACTIVE', 'ARCHIVED']),
+    // Contact details quoted in messages ({{brand_phone}} …).
+    contactPhone: optText(40),
+    contactEmail: z.email().max(254).nullable(),
+    website: z.url().max(300).nullable(),
+    address: optText(500),
+  })
   .partial();
 
 export const CreateBranchSchema = z.object({

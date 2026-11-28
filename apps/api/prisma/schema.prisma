@@ -205,6 +205,11 @@ model Brand {
   timezone       String
   currency       Currency
   status         RecordStatus @default(ACTIVE)
+  /// Contact details quoted in messages ({{brand_phone}} …).
+  contactPhone   String?      @map("contact_phone")
+  contactEmail   String?      @map("contact_email")
+  website        String?
+  address        String?
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -1331,6 +1336,8 @@ model MessageTemplate {
   subject              String?
   body                 String
   providerTemplateName String?        @map("provider_template_name")
+  /// Situation for one-click sending: COURSE_DETAILS, COLLEGE_DETAILS, FOLLOW_UP, FEE_DETAILS, GENERAL.
+  category             String         @default("GENERAL")
   status               TemplateStatus @default(DRAFT)
   approvedById         String?        @map("approved_by_id") @db.Uuid
   approvedAt           DateTime?      @map("approved_at") @db.Timestamptz(3)

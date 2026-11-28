@@ -210,3 +210,10 @@ erDiagram
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `meta_connections`          | Facebook page per brand: source, page id (unique), page name, `token_sealed` (AES-256-GCM), status ACTIVE/PAUSED, subscribed, last lead / error; RLS |
 | `LeadChannel.GOOGLE_SHEETS` | New channel; every brand gets a "Google Sheets" source                                                                                               |
+
+## Quick messages (A-049)
+
+| Column                                                        | Notes                                                |
+| ------------------------------------------------------------- | ---------------------------------------------------- |
+| `message_templates.category`                                  | Situation; CHECK in the five values; default GENERAL |
+| `brands.contact_phone`, `contact_email`, `website`, `address` | Quoted in messages (`{{brand_phone}}` …)             |

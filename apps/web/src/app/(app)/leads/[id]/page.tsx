@@ -22,6 +22,7 @@ import { EngagePanel } from '@/components/engage-panel';
 import { MarkLost, RecoveryPanel } from '@/components/recovery-panel';
 import { AdmissionPanel } from '@/components/admission-panel';
 import { AiPanel } from '@/components/ai-panel';
+import { QuickMessages } from '@/components/quick-messages';
 import { QualificationCard, QuotationsCard, StagePanel } from '@/components/pipeline-panel';
 
 const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
@@ -316,6 +317,9 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
             brandId={l.brandId}
             onChanged={changed}
           />
+          {l.canEdit && !['MERGED', 'CLOSED_LOST'].includes(l.status) && (
+            <QuickMessages leadId={l.id} onChanged={changed} />
+          )}
           {l.status !== 'MERGED' && (
             <EngagePanel
               leadId={l.id}

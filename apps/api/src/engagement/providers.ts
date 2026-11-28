@@ -24,6 +24,20 @@ export abstract class WhatsAppProvider {
   abstract send(m: WhatsAppSend): Promise<{ providerRef: string }>;
 }
 
+export interface SmsSend {
+  to: string; // E.164
+  body: string;
+  /** Registered template (India DLT) — required by most SMS providers; null for free text where allowed. */
+  templateName: string | null;
+  clientRef: string;
+}
+
+/** SMS provider (India: DLT-registered templates; UAE: registered sender id). Real adapters arrive with O-06. */
+export abstract class SmsProvider {
+  abstract readonly name: string;
+  abstract send(m: SmsSend): Promise<{ providerRef: string }>;
+}
+
 /** Click-to-call: the provider rings the agent, then bridges to the customer. */
 export abstract class TelephonyProvider {
   abstract readonly name: string;
@@ -56,6 +70,17 @@ export class SandboxWhatsAppProvider extends WhatsAppProvider {
   }
 }
 
+/** SANDBOX — DEVELOPMENT AND TESTS ONLY. Records SMS instead of sending; numbers ending in 0000 fail permanently. */
+export class SandboxSmsProvider extends SmsProvider {
+  readonly name = 'sandbox-sms';
+  readonly sent: SmsSend[] = [];
+  async send(m: SmsSend) {
+    if (m.to.endsWith('0000')) throw new ProviderError('Number cannot receive SMS', true);
+    this.sent.push(m);
+    return { providerRef: `sbx-sms-${randomUUID()}` };
+  }
+}
+
 /** SANDBOX — DEVELOPMENT AND TESTS ONLY. Pretends to place a call and returns a reference. */
 export class SandboxTelephonyProvider extends TelephonyProvider {
   readonly name = 'sandbox-telephony';
@@ -67,6 +92,7 @@ export class SandboxTelephonyProvider extends TelephonyProvider {
 /** Which channels are live. `null` = not configured (manual logging still works). */
 export abstract class ProviderRegistry {
   abstract readonly whatsapp: WhatsAppProvider | null;
+  abstract readonly sms: SmsProvider | null;
   abstract readonly telephony: TelephonyProvider | null;
   abstract readonly sandbox: boolean;
 }
@@ -76,6 +102,7 @@ export function buildProviderRegistry(nodeEnv: string): ProviderRegistry {
   return {
     sandbox,
     whatsapp: sandbox ? new SandboxWhatsAppProvider() : null,
+    sms: sandbox ? new SandboxSmsProvider() : null,
     telephony: sandbox ? new SandboxTelephonyProvider() : null,
   };
 }

@@ -1,14 +1,38 @@
 import { z } from 'zod';
 import { CALL_OUTCOMES, NewTaskSchema } from './tasks';
 
-export const MESSAGE_CHANNELS = ['WHATSAPP', 'EMAIL'] as const;
+export const MESSAGE_CHANNELS = ['WHATSAPP', 'EMAIL', 'SMS'] as const;
+/** Situations for one-click sending from a lead (quick messages). */
+export const TEMPLATE_CATEGORIES = [
+  'COURSE_DETAILS',
+  'COLLEGE_DETAILS',
+  'FOLLOW_UP',
+  'FEE_DETAILS',
+  'GENERAL',
+] as const;
 export const APPOINTMENT_MODES = ['IN_PERSON', 'PHONE', 'VIDEO'] as const;
 export const TEMPLATE_PLACEHOLDERS = [
   'first_name',
   'full_name',
   'course',
+  'course_fee',
+  'course_duration',
+  'course_mode',
+  'next_batch',
   'owner_name',
+  'owner_phone',
   'brand',
+  'brand_phone',
+  'brand_email',
+  'brand_website',
+  'brand_address',
+  'quotation_total',
+  'fee_total',
+  'fee_paid',
+  'fee_outstanding',
+  'next_due_date',
+  'next_due_amount',
+  'appointment_time',
 ] as const;
 
 const instant = z.iso.datetime({ offset: true });
@@ -53,6 +77,7 @@ export const TemplateSchema = z.object({
   subject: z.string().trim().max(200).optional(),
   body: z.string().trim().min(1).max(4000),
   providerTemplateName: z.string().trim().max(200).optional(),
+  category: z.enum(TEMPLATE_CATEGORIES).default('GENERAL'),
 });
 
 export const UpdateTemplateSchema = z
@@ -61,8 +86,15 @@ export const UpdateTemplateSchema = z
     body: z.string().trim().min(1).max(4000),
     providerTemplateName: z.string().trim().max(200).nullable(),
     status: z.enum(['DRAFT', 'APPROVED', 'ARCHIVED']),
+    category: z.enum(TEMPLATE_CATEGORIES),
   })
   .partial();
+
+/** One click: send the situation's approved template on each chosen channel. */
+export const QuickSendSchema = z.object({
+  category: z.enum(TEMPLATE_CATEGORIES),
+  channels: z.array(z.enum(MESSAGE_CHANNELS)).min(1).max(3),
+});
 
 export const CreateAppointmentSchema = z.object({
   counsellorId: z.uuid(),

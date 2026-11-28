@@ -257,3 +257,12 @@ key (`INTAKE_PER_MINUTE`).
 | `POST /meta-connections`             | `integration.manage`                            | `{ brandId, sourceId, pageId, pageName, accessToken }`; subscribes the page; 400 `META_SUBSCRIBE_FAILED`, 409 `PAGE_ALREADY_CONNECTED` / `META_NOT_CONFIGURED` / `SECRETS_KEY_MISSING`; audited |
 | `PATCH /meta-connections/:id`        | `integration.manage`                            | `{ status?: ACTIVE\|PAUSED, pageName?, sourceId?, accessToken? }`; audited                                                                                                                      |
 | `POST /intake/leads` (Google Sheets) | intake key of a GOOGLE_SHEETS source            | same as website intake; the generated Apps Script sends `externalId` = sheet:tab:row (idempotent)                                                                                               |
+
+## Quick messages (A-049)
+
+| Method & path                             | Permission                    | Notes                                                                                                                         |
+| ----------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `GET /leads/:id/messages/quick?category=` | can edit the lead (404 / 403) | per channel (WHATSAPP, EMAIL, SMS): `ready`, template, recipient, rendered subject/body, or `code` + `reason`                 |
+| `POST /leads/:id/messages/quick`          | can edit the lead             | `{ category, channels[] }` → one queued message per ready channel; `results` per channel; 400 `NOTHING_SENT` when none can go |
+| `POST/PATCH /message-templates`           | unchanged                     | + `category` (COURSE_DETAILS, COLLEGE_DETAILS, FOLLOW_UP, FEE_DETAILS, GENERAL); channel SMS                                  |
+| `PATCH /brands/:id`                       | `brand.manage`                | + `contactPhone`, `contactEmail`, `website`, `address` (used in messages)                                                     |

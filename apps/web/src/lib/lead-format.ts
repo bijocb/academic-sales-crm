@@ -35,3 +35,17 @@ export const REASON_LABEL: Record<string, string> = {
   SAME_CITY: 'Same city',
   NAME_WORD_OVERLAP: 'Similar name',
 };
+
+/** Situations for one-click quick messages (template categories). */
+export const CATEGORY_LABEL: Record<string, string> = {
+  COURSE_DETAILS: 'Course details',
+  COLLEGE_DETAILS: 'College details',
+  FOLLOW_UP: 'Follow-up',
+  FEE_DETAILS: 'Fee details',
+  GENERAL: 'General',
+};
+export const MESSAGE_CHANNEL_LABEL: Record<string, string> = {
+  WHATSAPP: 'WhatsApp',
+  EMAIL: 'Email',
+  SMS: 'SMS',
+};

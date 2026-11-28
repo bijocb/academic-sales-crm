@@ -59,7 +59,9 @@ export default function BrandsPage() {
             brand={b}
             branches={(branches.data ?? []).filter((x) => x.brandId === b.id)}
             canAddBranch={can('branch.manage')}
+            canEditBrand={can('brand.manage')}
             onChanged={() => void branches.reload()}
+            onBrandChanged={() => void brands.reload()}
           />
         ))}
         {brands.data?.length === 0 && <p className="text-sm text-slate-500">No brands yet.</p>}
@@ -123,12 +125,16 @@ function BrandCard({
   brand,
   branches,
   canAddBranch,
+  canEditBrand,
   onChanged,
+  onBrandChanged,
 }: {
   brand: Brand;
   branches: Branch[];
   canAddBranch: boolean;
+  canEditBrand: boolean;
   onChanged: () => void;
+  onBrandChanged: () => void;
 }) {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', code: '', city: '' });
@@ -145,6 +151,7 @@ function BrandCard({
         </div>
       }
     >
+      <BrandContact brand={brand} canEdit={canEditBrand} onSaved={onBrandChanged} />
       <Table head={['Branch', 'Code', 'City', 'Time zone', 'Status']} empty={branches.length === 0}>
         {branches.map((br) => (
           <tr key={br.id}>
@@ -221,5 +228,89 @@ function BrandCard({
         </div>
       )}
     </Card>
+  );
+}
+
+/** Contact details quoted in messages ({{brand_phone}}, {{brand_email}}, {{brand_website}}, {{brand_address}}). */
+function BrandContact({
+  brand,
+  canEdit,
+  onSaved,
+}: {
+  brand: Brand;
+  canEdit: boolean;
+  onSaved: () => void;
+}) {
+  const [f, setF] = useState({
+    contactPhone: brand.contactPhone ?? '',
+    contactEmail: brand.contactEmail ?? '',
+    website: brand.website ?? '',
+    address: brand.address ?? '',
+  });
+  const [saved, setSaved] = useState(false);
+  const { busy, error, run } = useAction();
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => {
+    setSaved(false);
+    setF({ ...f, [k]: e.target.value });
+  };
+  return (
+    <form
+      className="mb-4 grid gap-3 rounded-md bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-5"
+      aria-label={`${brand.name} contact details`}
+      onSubmit={(e) => {
+        e.preventDefault();
+        void run(async () => {
+          await api(`/brands/${brand.id}`, {
+            method: 'PATCH',
+            body: {
+              contactPhone: f.contactPhone || null,
+              contactEmail: f.contactEmail || null,
+              website: f.website || null,
+              address: f.address || null,
+            },
+          });
+          setSaved(true);
+          onSaved();
+        });
+      }}
+    >
+      <p className="text-xs text-slate-600 sm:col-span-2 lg:col-span-5">
+        Contact details used in messages to students (college details templates).
+      </p>
+      <Field label="Phone">
+        <Input disabled={!canEdit} value={f.contactPhone} onChange={set('contactPhone')} />
+      </Field>
+      <Field label="Email">
+        <Input
+          disabled={!canEdit}
+          type="email"
+          value={f.contactEmail}
+          onChange={set('contactEmail')}
+        />
+      </Field>
+      <Field label="Website">
+        <Input
+          disabled={!canEdit}
+          type="url"
+          placeholder="https://"
+          value={f.website}
+          onChange={set('website')}
+        />
+      </Field>
+      <Field label="Address">
+        <Input disabled={!canEdit} value={f.address} onChange={set('address')} />
+      </Field>
+      {canEdit && (
+        <div className="flex items-end gap-2">
+          <Button type="submit" variant="secondary" disabled={busy}>
+            Save contacts
+          </Button>
+          {saved && <span className="text-xs text-green-700">Saved</span>}
+        </div>
+      )}
+      <div className="sm:col-span-2 lg:col-span-5">
+        <ErrorText error={error} />
+      </div>
+    </form>
   );
 }

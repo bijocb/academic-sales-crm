@@ -15,12 +15,15 @@ import {
   useLoad,
 } from '@/components/ui';
 import { api } from '@/lib/api';
+import { TEMPLATE_PLACEHOLDERS } from '@crm/contracts';
+import { CATEGORY_LABEL, MESSAGE_CHANNEL_LABEL } from '@/lib/lead-format';
 import type { Brand } from '@/lib/types';
 
 interface Template {
   id: string;
   brandId: string;
-  channel: 'WHATSAPP' | 'EMAIL';
+  channel: 'WHATSAPP' | 'EMAIL' | 'SMS';
+  category: string;
   name: string;
   language: string;
   subject: string | null;
@@ -46,6 +49,7 @@ export default function TemplatesPage() {
     subject: '',
     body: '',
     providerTemplateName: '',
+    category: 'COURSE_DETAILS',
   });
   const { busy, error, run } = useAction();
   const setStatus = (t: Template, status: Template['status']) =>
@@ -58,7 +62,7 @@ export default function TemplatesPage() {
     <>
       <PageHeader
         title="Message templates"
-        description="WhatsApp messages can only use approved templates. Placeholders: {{first_name}}, {{full_name}}, {{course}}, {{owner_name}}, {{brand}}."
+        description="WhatsApp and SMS can only use approved templates. Give each template a situation so it appears in the lead's one-click Quick messages."
         actions={
           <Select
             aria-label="Brand"
@@ -91,6 +95,7 @@ export default function TemplatesPage() {
                     subject: f.subject || undefined,
                     body: f.body,
                     providerTemplateName: f.providerTemplateName || undefined,
+                    category: f.category,
                   },
                 });
                 setF({ ...f, name: '', subject: '', body: '', providerTemplateName: '' });
@@ -107,6 +112,21 @@ export default function TemplatesPage() {
                   >
                     <option value="WHATSAPP">WhatsApp</option>
                     <option value="EMAIL">Email</option>
+                    <option value="SMS">SMS</option>
+                  </Select>
+                </Field>
+              </div>
+              <div className="w-44">
+                <Field label="Situation">
+                  <Select
+                    value={f.category}
+                    onChange={(e) => setF({ ...f, category: e.target.value })}
+                  >
+                    {Object.entries(CATEGORY_LABEL).map(([k, l]) => (
+                      <option key={k} value={k}>
+                        {l}
+                      </option>
+                    ))}
                   </Select>
                 </Field>
               </div>
@@ -128,9 +148,15 @@ export default function TemplatesPage() {
                   />
                 </Field>
               </div>
-              {f.channel === 'WHATSAPP' ? (
+              {f.channel !== 'EMAIL' ? (
                 <div className="w-64">
-                  <Field label="Provider template name">
+                  <Field
+                    label={
+                      f.channel === 'SMS'
+                        ? 'Registered template id (DLT)'
+                        : 'Provider template name'
+                    }
+                  >
                     <Input
                       value={f.providerTemplateName}
                       onChange={(e) => setF({ ...f, providerTemplateName: e.target.value })}
@@ -148,6 +174,12 @@ export default function TemplatesPage() {
                 </div>
               )}
             </div>
+            <p className="text-xs text-slate-600">
+              Fill-in fields:{' '}
+              {TEMPLATE_PLACEHOLDERS.map((x) => (
+                <code key={x} className="mr-1 rounded bg-slate-100 px-1">{`{{${x}}}`}</code>
+              ))}
+            </p>
             <Field label="Text">
               <textarea
                 className="w-full rounded-md border-0 px-3 py-2 text-sm ring-1 ring-slate-300"
@@ -165,13 +197,17 @@ export default function TemplatesPage() {
         </Card>
         <Card title="Templates">
           <ErrorText error={list.error} />
-          <Table head={['Name', 'Channel', 'Text', 'Status', '']} empty={list.data?.length === 0}>
+          <Table
+            head={['Name', 'Situation', 'Channel', 'Text', 'Status', '']}
+            empty={list.data?.length === 0}
+          >
             {list.data?.map((t) => (
               <tr key={t.id}>
                 <Td className="font-medium">
                   {t.name} <span className="text-xs text-slate-500">({t.language})</span>
                 </Td>
-                <Td>{t.channel === 'WHATSAPP' ? 'WhatsApp' : 'Email'}</Td>
+                <Td>{CATEGORY_LABEL[t.category] ?? t.category}</Td>
+                <Td>{MESSAGE_CHANNEL_LABEL[t.channel] ?? t.channel}</Td>
                 <Td className="max-w-md text-xs whitespace-pre-line text-slate-600">
                   {t.subject ? `${t.subject}\n` : ''}
                   {t.body}

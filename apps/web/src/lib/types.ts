@@ -26,6 +26,10 @@ export interface Brand {
   timezone: string;
   currency: 'INR' | 'AED';
   status: 'ACTIVE' | 'ARCHIVED';
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+  website?: string | null;
+  address?: string | null;
   _count?: { branches: number; teams: number };
 }
 export interface Branch {

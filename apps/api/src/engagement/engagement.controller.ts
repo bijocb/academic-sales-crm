@@ -17,7 +17,9 @@ import {
   CreateAppointmentSchema,
   LogCallSchema,
   RescheduleAppointmentSchema,
+  QuickSendSchema,
   SendMessageSchema,
+  TEMPLATE_CATEGORIES,
   TemplateSchema,
   UpdateTemplateSchema,
   z,
@@ -47,6 +49,8 @@ const SandboxWebhook = z.discriminatedUnion('type', [
     providerRef: z.string().optional(),
   }),
 ]);
+
+const QuickCategoryQuery = z.object({ category: z.enum(TEMPLATE_CATEGORIES) });
 
 @ApiTags('engagement')
 @Controller()
@@ -91,6 +95,27 @@ export class EngagementController {
     @ZBody(SendMessageSchema) body: z.infer<typeof SendMessageSchema>,
   ) {
     return this.engagement.send(requireOrg(p), id, body);
+  }
+
+  /** Quick messages: what one click would send for a situation, per channel. */
+  @Get('leads/:id/messages/quick')
+  quickPreview(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZQuery(QuickCategoryQuery) q: z.infer<typeof QuickCategoryQuery>,
+  ) {
+    return this.engagement.quickPreview(requireOrg(p), id, q.category);
+  }
+
+  /** Quick messages: send the situation's approved templates on the chosen channels in one click. */
+  @Post('leads/:id/messages/quick')
+  @ApiZodBody(QuickSendSchema)
+  quickSend(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZBody(QuickSendSchema) body: z.infer<typeof QuickSendSchema>,
+  ) {
+    return this.engagement.quickSend(requireOrg(p), id, body);
   }
 
   @Post('leads/:id/contact-preference')
