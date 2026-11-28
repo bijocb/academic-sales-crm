@@ -217,3 +217,9 @@ erDiagram
 | ------------------------------------------------------------- | ---------------------------------------------------- |
 | `message_templates.category`                                  | Situation; CHECK in the five values; default GENERAL |
 | `brands.contact_phone`, `contact_email`, `website`, `address` | Quoted in messages (`{{brand_phone}}` …)             |
+
+## Mobile app (A-050)
+
+| Table          | Notes                                                                                                                                                     |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `push_devices` | phone per user: Expo push `token` (unique), platform ios/android/web, app version, last seen, `disabled_at` (sign-out or uninstalled; rows are kept); RLS |

@@ -2207,3 +2207,19 @@ model MetaConnection {
   @@index([organizationId, brandId])
   @@map("meta_connections")
 }
+
+/// A phone that receives push notifications for a user (mobile app, Expo push token).
+model PushDevice {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  token          String    @unique
+  platform       String
+  appVersion     String?   @map("app_version")
+  createdAt      DateTime  @map("created_at") @db.Timestamptz(3)
+  lastSeenAt     DateTime  @map("last_seen_at") @db.Timestamptz(3)
+  disabledAt     DateTime? @map("disabled_at") @db.Timestamptz(3)
+
+  @@index([organizationId, userId])
+  @@map("push_devices")
+}

@@ -72,6 +72,11 @@ const EnvSchema = z
       .string()
       .optional()
       .transform((v) => (v ? v : undefined)),
+    /** Optional Expo access token when "enhanced push security" is on for the Expo project. */
+    EXPO_ACCESS_TOKEN: z
+      .string()
+      .optional()
+      .transform((v) => (v ? v : undefined)),
     ENABLE_API_DOCS: z
       .enum(['true', 'false'])
       .optional()

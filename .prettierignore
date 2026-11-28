@@ -3,3 +3,5 @@ docs/SRS.md
 apps/api/prisma/migrations
 .next
 dist
+apps/mobile/package-lock.json
+apps/mobile/.expo

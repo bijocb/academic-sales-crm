@@ -27,6 +27,7 @@ Platform (Super Admin)
 academic-sales-crm/
 ├── apps/
 │   ├── web/          Next.js (App Router) + TypeScript + Tailwind
+│   ├── mobile/       Expo / React Native executive app (own npm lockfile, outside the pnpm workspace)
 │   └── api/          NestJS — one codebase, two entrypoints:
 │                       main.ts   → HTTP API (REST, OpenAPI)
 │                       worker.ts → BullMQ workers + schedulers
@@ -119,6 +120,15 @@ Changes from SRS Appendix A: the three separate worker apps become one worker en
 - No external AI provider (A-045, O-13). Daily `ai.train` and hourly `ai.rescore` jobs are enqueued from the scheduler
   tick with deterministic keys. The lead page loads the AI panel separately, so AI failures cannot break it. Review:
   `docs/AI-REVIEW.md`.
+
+## 5f. Executive mobile app (A-050)
+
+- `apps/mobile`: Expo (SDK 58) with Expo Router (`src/app`); talks to the same `/api/v1` as the web. It is not in the
+  pnpm workspace (Metro and EAS expect a plain npm project); it does not import `packages/contracts` and keeps its few
+  constants in `src/lib/logic.ts`, which holds the testable logic (`npm test`, Node's test runner).
+- Auth: `x-crm-client: mobile` → refresh token in the response body, stored in SecureStore; access token in memory;
+  one refresh on 401. Push: `push_devices` + `push.send` job per notification via `PushProvider` (Expo in production,
+  labelled sandbox otherwise). Offline: last GET responses in AsyncStorage, read-only, cleared on sign-out.
 
 ## 6. Allocation
 

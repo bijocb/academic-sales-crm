@@ -76,6 +76,9 @@ import { AiController } from './ai/ai.controller';
 import { SecretBox } from './common/secret-box';
 import { buildMetaClient, MetaClient } from './leads/meta';
 import { MetaController } from './leads/meta.controller';
+import { buildPushProvider, PushProvider } from './push/push';
+import { PushController } from './push/push.controller';
+import { PushService } from './push/push.service';
 import { MetaService, SECRET_BOX } from './leads/meta.service';
 import { StatusService } from './jobs/status.service';
 import { AiService } from './ai/ai.service';
@@ -156,6 +159,7 @@ export class AppModule implements NestModule {
         ReportsController,
         AiController,
         MetaController,
+        PushController,
         InternalController,
       ],
       providers: [
@@ -199,6 +203,12 @@ export class AppModule implements NestModule {
         TargetsService,
         AiService,
         MetaService,
+        PushService,
+        {
+          provide: PushProvider,
+          useFactory: (c: AppConfig) => buildPushProvider(c.NODE_ENV, c.EXPO_ACCESS_TOKEN),
+          inject: [APP_CONFIG],
+        },
         {
           provide: MetaClient,
           useFactory: (c: AppConfig) =>

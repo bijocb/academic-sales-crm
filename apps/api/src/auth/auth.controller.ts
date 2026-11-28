@@ -34,7 +34,18 @@ export class AuthController {
     return this.config.NODE_ENV === 'production';
   }
 
-  private respond(res: Response, tokens: IssuedTokens) {
+  /**
+   * Browsers keep the refresh token in an httpOnly cookie only. The mobile app (`x-crm-client: mobile`) has no
+   * cookie jar it can trust, so it gets the refresh token in the body and keeps it in the phone's secure storage.
+   */
+  private respond(req: Request, res: Response, tokens: IssuedTokens) {
+    if (isMobile(req))
+      return {
+        accessToken: tokens.accessToken,
+        accessTokenExpiresAt: tokens.accessTokenExpiresAt,
+        refreshToken: tokens.refreshToken,
+        refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
+      };
     setAuthCookies(res, tokens, this.secure);
     return { accessToken: tokens.accessToken, accessTokenExpiresAt: tokens.accessTokenExpiresAt };
   }
@@ -50,7 +61,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const tokens = await this.auth.login(body.email, body.password, clientInfo(req));
-    return this.respond(res, tokens);
+    return this.respond(req, res, tokens);
   }
 
   @Public()
@@ -58,11 +69,16 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(200)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const token = (req.cookies as Record<string, string> | undefined)?.[REFRESH_COOKIE];
+    const fromBody = (req.body as { refreshToken?: unknown } | undefined)?.refreshToken;
+    const token = isMobile(req)
+      ? typeof fromBody === 'string'
+        ? fromBody
+        : undefined
+      : (req.cookies as Record<string, string> | undefined)?.[REFRESH_COOKIE];
     if (!token)
       throw unauthorized('INVALID_REFRESH_TOKEN', 'Session expired, please sign in again');
     try {
-      return this.respond(res, await this.auth.refresh(token, clientInfo(req)));
+      return this.respond(req, res, await this.auth.refresh(token, clientInfo(req)));
     } catch (e) {
       clearAuthCookies(res, this.secure);
       throw e;
@@ -136,6 +152,8 @@ export class AuthController {
     await this.auth.changePassword(p, body.currentPassword, body.newPassword);
   }
 }
+
+const isMobile = (req: Request) => req.headers['x-crm-client'] === 'mobile';
 
 function clientInfo(req: Request) {
   return { ip: req.ip, userAgent: req.headers['user-agent'] };

@@ -1,5 +1,7 @@
 packages:
   - apps/*
+  # The Expo mobile app is its own npm project (React Native needs a flat node_modules).
+  - '!apps/mobile'
   - packages/*
 onlyBuiltDependencies:
   - '@prisma/client'

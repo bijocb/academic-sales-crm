@@ -266,3 +266,14 @@ key (`INTAKE_PER_MINUTE`).
 | `POST /leads/:id/messages/quick`          | can edit the lead             | `{ category, channels[] }` → one queued message per ready channel; `results` per channel; 400 `NOTHING_SENT` when none can go |
 | `POST/PATCH /message-templates`           | unchanged                     | + `category` (COURSE_DETAILS, COLLEGE_DETAILS, FOLLOW_UP, FEE_DETAILS, GENERAL); channel SMS                                  |
 | `PATCH /brands/:id`                       | `brand.manage`                | + `contactPhone`, `contactEmail`, `website`, `address` (used in messages)                                                     |
+
+## Mobile app (A-050)
+
+| Method & path                                         | Permission                    | Notes                                                                                                                                                     |
+| ----------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /auth/login`, `POST /auth/refresh`              | public                        | with header `x-crm-client: mobile`: the body carries `refreshToken` (+ expiry), no cookies; refresh takes `{ refreshToken }` and rotates it (reuse → 401) |
+| `POST /me/push-devices`                               | signed in                     | `{ token: ExponentPushToken[…], platform: ios\|android\|web, appVersion? }`; registers or moves the phone to this user; 400 on a malformed token          |
+| `POST /me/push-devices/remove`                        | signed in                     | `{ token }` → `{ removed }`; on sign-out                                                                                                                  |
+| `GET /leads/:id/messages/personal-whatsapp?category=` | can edit the lead (404 / 403) | `{ ready, recipient, body, url: https://wa.me/<digits>?text=… }` or `{ ready: false, code: NO_TEMPLATE \| OPTED_OUT \| NO_PHONE …, reason }`              |
+| `POST /leads/:id/messages/personal-whatsapp`          | can edit the lead             | `{ category }` → `{ activityId }`: outbound WHATSAPP activity, provider `personal-whatsapp`; 409 when opted out                                           |
+| job `push.send` (key `push:<notificationId>`)         | system                        | sends a new notification to the user's active phones through Expo; retried, then dead-lettered                                                            |

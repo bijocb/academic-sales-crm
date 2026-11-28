@@ -27,10 +27,21 @@ export class NotificationsService {
     },
   ) {
     try {
-      await tx.$executeRaw`
+      const created = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO notifications (id, organization_id, user_id, type, title, body, link, dedup_key, created_at)
         VALUES (gen_random_uuid(), ${n.organizationId}::uuid, ${n.userId}::uuid, ${n.type}, ${n.title}, ${n.body ?? null}, ${n.link ?? null}, ${n.dedupKey}, ${n.now})
-        ON CONFLICT (user_id, dedup_key) DO NOTHING`;
+        ON CONFLICT (user_id, dedup_key) DO NOTHING
+        RETURNING id`;
+      // Mirror it to the user's phones (mobile app): one push job per notification, sent by PushService.
+      if (
+        created[0] &&
+        (await tx.pushDevice.count({ where: { userId: n.userId, disabledAt: null } })) > 0
+      )
+        await tx.$executeRaw`
+          INSERT INTO jobs (id, organization_id, type, key, payload, status, run_at, attempts, max_attempts, created_at)
+          VALUES (gen_random_uuid(), ${n.organizationId}::uuid, 'push.send', ${`push:${created[0].id}`},
+                  ${JSON.stringify({ notificationId: created[0].id })}::jsonb, 'PENDING', ${n.now}, 0, 3, ${n.now})
+          ON CONFLICT (key) DO NOTHING`;
     } catch (e) {
       if (!(e instanceof Prisma.PrismaClientKnownRequestError)) throw e;
     }

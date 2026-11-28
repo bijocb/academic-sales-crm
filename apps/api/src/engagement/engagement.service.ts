@@ -166,6 +166,8 @@ export class EngagementService implements OnModuleInit {
     template: MessageTemplate | null,
     input: { subject?: string; body?: string },
     vars: Record<string, string | undefined>,
+    /** Sent by the executive from their own phone's WhatsApp (mobile app): no provider involved (A-050). */
+    personal = false,
   ): Promise<Prepared | Problem> {
     const no = (code: string, message: string): Problem => ({ ok: false, code, message });
     if (lead.person.doNotContact) return no('OPTED_OUT', 'This person asked not to be contacted');
@@ -177,7 +179,11 @@ export class EngagementService implements OnModuleInit {
     let provider: string;
     let recipient: string | null;
     if (channel === 'WHATSAPP' || channel === 'SMS') {
-      const p = channel === 'WHATSAPP' ? this.providers.whatsapp : this.providers.sms;
+      const p = personal
+        ? { name: 'personal-whatsapp' }
+        : channel === 'WHATSAPP'
+          ? this.providers.whatsapp
+          : this.providers.sms;
       if (!p)
         return no(
           `${channel}_NOT_CONFIGURED`,
@@ -306,6 +312,84 @@ export class EngagementService implements OnModuleInit {
         ];
       }),
     ) as Record<Channel, MessageTemplate | null>;
+  }
+
+  /**
+   * WhatsApp from the executive's own phone (mobile app, A-050): the situation's approved WhatsApp template rendered
+   * for this lead, and a wa.me link that opens WhatsApp with the text filled in. Nothing is sent by the CRM.
+   */
+  personalWhatsApp(
+    p: OrgPrincipal,
+    leadId: string,
+    category: (typeof TEMPLATE_CATEGORIES)[number],
+  ) {
+    const now = this.clock.now();
+    return this.db.tenant(p.organizationId, async (tx) => {
+      const lead = await this.editableLead(tx, p, leadId);
+      const t = (await this.quickTemplates(tx, lead.brandId, category, lead.person.language))
+        .WHATSAPP;
+      if (!t)
+        return {
+          ready: false,
+          code: 'NO_TEMPLATE',
+          reason: 'No approved WhatsApp template for this situation',
+        };
+      const r = await this.prepare(
+        tx,
+        lead,
+        'WHATSAPP',
+        t,
+        {},
+        await templateVars(tx, lead, now, p.userId),
+        true,
+      );
+      if (!r.ok) return { ready: false, code: r.code, reason: r.message, template: t.name };
+      return {
+        ready: true,
+        template: t.name,
+        recipient: r.recipient,
+        body: r.body,
+        url: `https://wa.me/${r.recipient.replace(/\D/g, '')}?text=${encodeURIComponent(r.body)}`,
+      };
+    });
+  }
+
+  /** Records a WhatsApp the executive sent from their own phone (after WhatsApp opened), in the lead's timeline. */
+  recordPersonalWhatsApp(
+    p: OrgPrincipal,
+    leadId: string,
+    category: (typeof TEMPLATE_CATEGORIES)[number],
+  ) {
+    const now = this.clock.now();
+    return this.db.tenant(p.organizationId, async (tx) => {
+      const lead = await this.editableLead(tx, p, leadId);
+      const t = (await this.quickTemplates(tx, lead.brandId, category, lead.person.language))
+        .WHATSAPP;
+      if (!t) throw badRequest('NO_TEMPLATE', 'No approved WhatsApp template for this situation');
+      const r = await this.prepare(
+        tx,
+        lead,
+        'WHATSAPP',
+        t,
+        {},
+        await templateVars(tx, lead, now, p.userId),
+        true,
+      );
+      if (!r.ok)
+        throw r.code === 'OPTED_OUT' ? conflict(r.code, r.message) : badRequest(r.code, r.message);
+      const activity = await recordActivity(tx, {
+        lead,
+        type: 'WHATSAPP',
+        direction: 'OUTBOUND',
+        actorUserId: p.userId,
+        now,
+        subject: null,
+        body: r.body,
+        templateId: t.id,
+        provider: 'personal-whatsapp',
+      });
+      return { activityId: activity.id, recorded: true };
+    });
   }
 
   /** What one click would send for a situation: per channel, the rendered message or why it cannot go. */

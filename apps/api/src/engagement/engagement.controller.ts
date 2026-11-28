@@ -51,6 +51,7 @@ const SandboxWebhook = z.discriminatedUnion('type', [
 ]);
 
 const QuickCategoryQuery = z.object({ category: z.enum(TEMPLATE_CATEGORIES) });
+const PersonalWhatsAppSchema = z.object({ category: z.enum(TEMPLATE_CATEGORIES) });
 
 @ApiTags('engagement')
 @Controller()
@@ -95,6 +96,27 @@ export class EngagementController {
     @ZBody(SendMessageSchema) body: z.infer<typeof SendMessageSchema>,
   ) {
     return this.engagement.send(requireOrg(p), id, body);
+  }
+
+  /** Mobile app: WhatsApp text and link for sending from the executive's own phone (A-050). */
+  @Get('leads/:id/messages/personal-whatsapp')
+  personalWhatsApp(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZQuery(QuickCategoryQuery) q: z.infer<typeof QuickCategoryQuery>,
+  ) {
+    return this.engagement.personalWhatsApp(requireOrg(p), id, q.category);
+  }
+
+  /** Mobile app: record that the WhatsApp was sent from the executive's phone. */
+  @Post('leads/:id/messages/personal-whatsapp')
+  @ApiZodBody(PersonalWhatsAppSchema)
+  recordPersonalWhatsApp(
+    @CurrentPrincipal() p: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZBody(PersonalWhatsAppSchema) body: z.infer<typeof PersonalWhatsAppSchema>,
+  ) {
+    return this.engagement.recordPersonalWhatsApp(requireOrg(p), id, body.category);
   }
 
   /** Quick messages: what one click would send for a situation, per channel. */
