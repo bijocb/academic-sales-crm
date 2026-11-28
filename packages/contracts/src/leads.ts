@@ -147,6 +147,8 @@ export const LeadListQuerySchema = z.object({
   ownerId: z.union([uuid, z.literal('none'), z.literal('me')]).optional(),
   courseId: uuid.optional(),
   q: z.string().trim().max(100).optional(),
+  /** `priority`: AI priority (override, else score) first, then most recent (Phase 14). */
+  sort: z.enum(['recent', 'priority']).default('recent'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(50),
 });

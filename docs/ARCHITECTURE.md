@@ -112,6 +112,14 @@ Changes from SRS Appendix A: the three separate worker apps become one worker en
 - Scope is applied to the records (brand and attributed user), from the caller's `report.read` grant; executives without it
   see only their own records.
 
+## 5e. AI assistance (Phase 14)
+
+- `apps/api/src/ai/`: pure scoring functions (`scoring.ts`), feature extraction that never reads personal data
+  (`features.ts`), and `AiService` (settings, training, scoring with fallback, overrides, next-best actions, jobs).
+- No external AI provider (A-045, O-13). Daily `ai.train` and hourly `ai.rescore` jobs are enqueued from the scheduler
+  tick with deterministic keys. The lead page loads the AI panel separately, so AI failures cannot break it. Review:
+  `docs/AI-REVIEW.md`.
+
 ## 6. Allocation
 
 Filter → rank → pick → record:

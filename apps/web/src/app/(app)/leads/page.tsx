@@ -16,6 +16,7 @@ import {
   useLoad,
 } from '@/components/ui';
 import { api } from '@/lib/api';
+import { bandTone } from '@/components/ai-panel';
 import { CHANNEL_LABEL, fmtDateTime as fmt, leadStatusTone as statusTone } from '@/lib/lead-format';
 import { useSession } from '@/lib/session';
 import { BulkMove, DEFAULT_STAGES, SavedViews, STAGE_LABEL } from '@/components/pipeline-tools';
@@ -30,15 +31,16 @@ export default function LeadsPage() {
   const [status, setStatus] = useState('');
   const [stage, setStage] = useState('');
   const [owner, setOwner] = useState('');
+  const [sort, setSort] = useState('recent');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
   const leads = useLoad(
     () =>
       api<Paged<LeadRow>>(
-        `/leads?page=${page}&pageSize=25${brandId ? `&brandId=${brandId}` : ''}${status ? `&status=${status}` : ''}${stage ? `&stage=${stage}` : ''}${owner ? `&ownerId=${owner}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
+        `/leads?page=${page}&pageSize=25${brandId ? `&brandId=${brandId}` : ''}${status ? `&status=${status}` : ''}${stage ? `&stage=${stage}` : ''}${owner ? `&ownerId=${owner}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}&sort=${sort}`,
       ),
-    [page, brandId, status, stage, owner, q],
+    [page, brandId, status, stage, owner, q, sort],
   );
   const filters = { brandId, status, stage, owner, q };
   const applyView = (f: Record<string, string>) => {
@@ -151,6 +153,18 @@ export default function LeadsPage() {
               <option value="me">My leads</option>
               <option value="none">Unassigned</option>
             </Select>
+            <Select
+              aria-label="Sort"
+              value={sort}
+              onChange={(e) => {
+                setSort(e.target.value);
+                setPage(1);
+              }}
+              className="w-40"
+            >
+              <option value="recent">Most recent</option>
+              <option value="priority">Priority first</option>
+            </Select>
           </div>
         }
       >
@@ -165,6 +179,7 @@ export default function LeadsPage() {
             'Original source',
             'Course',
             'Enquiries',
+            'Priority',
             'Stage',
             'Status',
             'Last enquiry',
@@ -197,6 +212,13 @@ export default function LeadsPage() {
               </Td>
               <Td>{l.course?.name ?? '—'}</Td>
               <Td>{l.enquiryCount}</Td>
+              <Td>
+                {l.priority ? (
+                  <Badge tone={bandTone(l.priority.band)}>{l.priority.band}</Badge>
+                ) : (
+                  '—'
+                )}
+              </Td>
               <Td className="whitespace-nowrap">{STAGE_LABEL[l.stage] ?? l.stage}</Td>
               <Td>
                 <Badge tone={statusTone(l.status)}>{l.status}</Badge>

@@ -21,6 +21,7 @@ import { LeadWork } from '@/components/task-panel';
 import { EngagePanel } from '@/components/engage-panel';
 import { MarkLost, RecoveryPanel } from '@/components/recovery-panel';
 import { AdmissionPanel } from '@/components/admission-panel';
+import { AiPanel } from '@/components/ai-panel';
 import { QualificationCard, QuotationsCard, StagePanel } from '@/components/pipeline-panel';
 
 const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
@@ -290,6 +291,9 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
         </div>
 
         <div className="space-y-6 lg:col-span-2">
+          {l.status !== 'MERGED' && (
+            <AiPanel key={`ai:${l.status}:${rev}`} leadId={l.id} onChanged={changed} />
+          )}
           {l.status !== 'MERGED' && (
             <StagePanel
               key={`stage:${l.stage}:${l.status}:${rev}`}

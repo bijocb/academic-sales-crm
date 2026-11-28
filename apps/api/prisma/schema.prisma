@@ -666,6 +666,11 @@ model Lead {
   lastEnquiryAt    DateTime   @map("last_enquiry_at") @db.Timestamptz(3)
   enquiryCount     Int        @default(1) @map("enquiry_count")
   stageChangedAt   DateTime?  @map("stage_changed_at") @db.Timestamptz(3)
+  /// Effective AI priority (latest override, else latest score) — for list sorting (Phase 14).
+  priorityBand     String?    @map("priority_band")
+  priorityScore    Int?       @map("priority_score")
+  /// 3 = HIGH, 2 = MEDIUM, 1 = LOW (sort key for priorityBand).
+  priorityRank     Int?       @map("priority_rank") @db.SmallInt
   createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -679,6 +684,7 @@ model Lead {
   @@unique([organizationId, id])
   @@index([organizationId, brandId, status, createdAt])
   @@index([organizationId, personId])
+  @@index([organizationId, brandId, priorityRank, priorityScore])
   @@map("leads")
 }
 
@@ -2079,4 +2085,92 @@ model IncentiveLine {
   @@index([organizationId, runId])
   @@index([organizationId, userId])
   @@map("incentive_lines")
+}
+
+// ------------------------------------------------------------------ Phase 14: AI assistance
+
+/// Per-brand AI switches and thresholds (A-045). Off by default.
+model AiSettings {
+  id                 String   @id @default(uuid()) @db.Uuid
+  organizationId     String   @map("organization_id") @db.Uuid
+  brandId            String   @unique @map("brand_id") @db.Uuid
+  enabled            Boolean  @default(false)
+  scoringEnabled     Boolean  @default(true) @map("scoring_enabled")
+  nextActionsEnabled Boolean  @default(true) @map("next_actions_enabled")
+  highThresholdBp    Int      @default(2500) @map("high_threshold_bp")
+  mediumThresholdBp  Int      @default(1000) @map("medium_threshold_bp")
+  minTrainingSize    Int      @default(50) @map("min_training_size")
+  updatedById        String?  @map("updated_by_id") @db.Uuid
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("ai_settings")
+}
+
+/// Trained model versions (append-only).
+model AiModel {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  brandId        String   @map("brand_id") @db.Uuid
+  version        Int
+  sampleSize     Int      @map("sample_size")
+  positives      Int
+  usable         Boolean
+  stats          Json
+  trainedAt      DateTime @map("trained_at") @db.Timestamptz(3)
+
+  @@unique([brandId, version])
+  @@unique([organizationId, id])
+  @@map("ai_models")
+}
+
+/// Lead score history (append-only); a row is written only when the result changes.
+model LeadScore {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  brandId        String   @map("brand_id") @db.Uuid
+  leadId         String   @map("lead_id") @db.Uuid
+  modelId        String?  @map("model_id") @db.Uuid
+  modelVersion   String   @map("model_version")
+  method         String
+  score          Int
+  band           String
+  probabilityBp  Int?     @map("probability_bp")
+  confidence     String
+  factors        Json
+  computedAt     DateTime @map("computed_at") @db.Timestamptz(3)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, leadId, computedAt])
+  @@map("lead_scores")
+}
+
+/// Human overrides of the priority band (append-only, FR-006).
+model LeadScoreOverride {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  leadId         String   @map("lead_id") @db.Uuid
+  scoreId        String?  @map("score_id") @db.Uuid
+  band           String
+  reason         String
+  createdById    String   @map("created_by_id") @db.Uuid
+  createdAt      DateTime @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, leadId, createdAt])
+  @@map("lead_score_overrides")
+}
+
+/// Accepted / dismissed next-best-action suggestions (append-only).
+model AiSuggestionEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  leadId         String   @map("lead_id") @db.Uuid
+  kind           String
+  action         String
+  reason         String?
+  detail         Json?
+  createdById    String   @map("created_by_id") @db.Uuid
+  createdAt      DateTime @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, leadId, createdAt])
+  @@map("ai_suggestion_events")
 }

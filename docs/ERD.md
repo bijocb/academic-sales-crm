@@ -192,3 +192,14 @@ erDiagram
 | `incentive_rules` | **Append-only** versioned rules (unique brand + name + version): basis, amount or basis points, threshold, cap, exclusions, split |
 | `incentive_runs`  | Per brand, rule version and period: DRAFT → APPROVED (approver ≠ creator); a trigger refuses any change once approved             |
 | `incentive_lines` | **Append-only** EARNED / CLAWBACK lines per person with their inputs (admission / payment ids, rule version)                      |
+
+## Phase 14 additions
+
+| Table / column                                           | Notes                                                                                                                      |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `leads.priority_band`, `priority_rank`, `priority_score` | Effective AI priority for sorting (latest override, else latest score); derived, recomputed                                |
+| `ai_settings`                                            | One per brand: enabled (default off), scoring / next actions, thresholds (bp), minimum training size                       |
+| `ai_models`                                              | **Append-only** model versions: sample size, conversions, usable, factor counts                                            |
+| `lead_scores`                                            | **Append-only** score history (a row only on change): method, model version, score, band, probability, confidence, factors |
+| `lead_score_overrides`                                   | **Append-only** human overrides with reason                                                                                |
+| `ai_suggestion_events`                                   | **Append-only** accepted / dismissed next-best actions                                                                     |

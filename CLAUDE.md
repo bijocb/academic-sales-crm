@@ -46,6 +46,11 @@ Read first: `docs/SRS.md` (spec), `docs/DECISIONS.md` (overrides SRS where they 
 - `ss` is not installed in the dev container: stop servers with `pkill -f dist/main.js; pkill -f next-server` before
   `pnpm test:e2e`, otherwise an old build keeps serving. Login rate limit is 10/min: specs reuse one brand-manager session (`tests/e2e/auth.setup.ts`); wait 60 s between e2e runs.
 
+- If the dev container's Postgres is fresh (no `crm` database), create `crm` and `crm_test` as the `postgres` OS user,
+  give the `postgres` role the dev password from `infra/docker/docker-compose.yml`, put it in `.env`'s
+  `MIGRATION_DATABASE_URL`, and run tests with `TEST_DB_OWNER_AUTH=postgres:<that password>`; then `pnpm db:migrate`,
+  `pnpm db:seed`, `pnpm db:seed:demo`.
+
 ## Conventions
 
 - Every tenant table: `organization_id` column, RLS policy `tenant_isolation`, composite FKs `(organization_id, x_id)`.

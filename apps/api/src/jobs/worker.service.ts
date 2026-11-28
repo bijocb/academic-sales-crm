@@ -15,6 +15,7 @@ import { isWorkingTime } from '../settings/business-calendar';
 import { SettingsService } from '../settings/settings.service';
 import { JobsService, RunSummary } from './jobs.service';
 import { FinanceService } from '../finance/finance.service';
+import { AiService } from '../ai/ai.service';
 
 const QUEUED = ['OPEN', 'ON_HOLD', 'IN_RECOVERY'] as const;
 /** A queued lead is retried at most this often by the background drain. */
@@ -46,6 +47,7 @@ export class WorkerService implements OnApplicationBootstrap, OnApplicationShutd
     private readonly db: Db,
     private readonly clock: Clock,
     @Optional() private readonly finance?: FinanceService,
+    @Optional() private readonly ai?: AiService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -64,6 +66,9 @@ export class WorkerService implements OnApplicationBootstrap, OnApplicationShutd
     if (this.running) return { skipped: true };
     this.running = true;
     try {
+      // AI jobs are enqueued first so this tick runs them (deterministic keys: once per day / hour).
+      // An AI problem must never stop the scheduler (fallback, FR-021).
+      await this.ai?.schedule().catch((e) => this.logger.warn({ err: e }, 'AI scheduling failed'));
       const jobs = await this.jobs.runDue({ workerId: this.workerId });
       const queue = await this.drainQueues();
       const payments = (await this.finance?.reconcilePending()) ?? { checked: 0 };

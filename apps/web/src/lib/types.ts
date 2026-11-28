@@ -164,6 +164,8 @@ export interface LeadRow {
   stage: string;
   status: string;
   enquiryCount: number;
+  /** AI priority (person's override, else score), Phase 14; null when AI is off. */
+  priority: { band: 'HIGH' | 'MEDIUM' | 'LOW'; score: number | null } | null;
   firstEnquiryAt: string;
   lastEnquiryAt: string;
   course: { id: string; name: string } | null;

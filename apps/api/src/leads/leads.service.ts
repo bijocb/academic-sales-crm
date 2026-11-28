@@ -119,7 +119,14 @@ export class LeadsService {
       const [rows, total] = await Promise.all([
         tx.lead.findMany({
           where,
-          orderBy: { lastEnquiryAt: 'desc' },
+          orderBy:
+            q.sort === 'priority'
+              ? [
+                  { priorityRank: { sort: 'desc', nulls: 'last' } },
+                  { priorityScore: { sort: 'desc', nulls: 'last' } },
+                  { lastEnquiryAt: 'desc' },
+                ]
+              : { lastEnquiryAt: 'desc' },
           ...pageArgs(q.page, q.pageSize),
           include: {
             person: true,
@@ -147,6 +154,7 @@ export class LeadsService {
           stageChangedAt: l.stageChangedAt,
           course: l.course,
           enquiryCount: l.enquiryCount,
+          priority: l.priorityBand ? { band: l.priorityBand, score: l.priorityScore } : null,
           firstEnquiryAt: l.firstEnquiryAt,
           lastEnquiryAt: l.lastEnquiryAt,
           originalSource: l.enquiries[0]

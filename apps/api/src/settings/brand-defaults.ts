@@ -105,6 +105,11 @@ export async function ensureBrandDefaults(
     await tx.financeSettings.create({ data: { organizationId, brandId } });
     created.push('finance_settings');
   }
+  if (!(await tx.aiSettings.findUnique({ where: { brandId } }))) {
+    // AI assistance is off until an administrator switches it on (A-045).
+    await tx.aiSettings.create({ data: { organizationId, brandId } });
+    created.push('ai_settings');
+  }
   return { created };
 }
 

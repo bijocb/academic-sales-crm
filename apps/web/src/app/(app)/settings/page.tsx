@@ -17,6 +17,7 @@ import {
   useLoad,
 } from '@/components/ui';
 import { api } from '@/lib/api';
+import { AiSettingsCard } from '@/components/ai-settings';
 import {
   formatInZone,
   minutesToTime,
@@ -40,7 +41,7 @@ export default function SettingsPage() {
     <>
       <PageHeader
         title="Brand settings"
-        description="Working hours, holidays, SLA timings and pipeline stages. Each brand is configured separately."
+        description="Working hours, holidays, SLA timings, pipeline stages and AI assistance. Each brand is configured separately."
       />
       {brands.data && (
         <div className="mb-6 flex flex-wrap items-end gap-4">
@@ -56,6 +57,7 @@ export default function SettingsPage() {
           <Holidays brand={brand} canEdit={canEdit} />
           <Sla brand={brand} canEdit={canEdit} />
           <Stages brand={brand} canEdit={canEdit} />
+          <AiSettingsCard brandId={brand.id} canEdit={canEdit} />
         </div>
       )}
     </>
