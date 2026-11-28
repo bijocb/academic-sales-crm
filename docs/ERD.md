@@ -223,3 +223,10 @@ erDiagram
 | Table          | Notes                                                                                                                                                     |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `push_devices` | phone per user: Expo push `token` (unique), platform ios/android/web, app version, last seen, `disabled_at` (sign-out or uninstalled; rows are kept); RLS |
+
+## Management assistant (A-052)
+
+| Table                 | Notes                                                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `assistant_settings`  | one row per organization: `enabled` (default off), `brief_enabled`, `monthly_question_limit`; RLS                                          |
+| `assistant_questions` | **Append-only** questions and weekly briefs: user, kind QUESTION/BRIEF, question, answer, status, tools used, provider, model, tokens; RLS |

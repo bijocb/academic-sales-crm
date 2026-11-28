@@ -130,6 +130,15 @@ Changes from SRS Appendix A: the three separate worker apps become one worker en
   one refresh on 401. Push: `push_devices` + `push.send` job per notification via `PushProvider` (Expo in production,
   labelled sandbox otherwise). Offline: last GET responses in AsyncStorage, read-only, cleared on sign-out.
 
+## 5g. Management insights and assistant (A-051, A-052)
+
+- `apps/api/src/insights/`: `rules.ts` (pure rules, unit-tested), `InsightsService` (two periods of report figures
+  from `ReportsService.insightFigures`, one collection each, plus targets in scope), `DigestService` (weekly jobs).
+- `apps/api/src/assistant/`: `AssistantProvider` (Claude through `@anthropic-ai/sdk`, manual tool loop with at most
+  8 rounds, refusal fallback; labelled sandbox outside production), `AssistantTools` (the only data the model sees:
+  scoped report aggregates run as the asking user), `AssistantService` (settings, limits, append-only question log,
+  brief). See `docs/plans/AI-MANAGEMENT.md`.
+
 ## 6. Allocation
 
 Filter → rank → pick → record:

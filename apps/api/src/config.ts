@@ -77,6 +77,13 @@ const EnvSchema = z
       .string()
       .optional()
       .transform((v) => (v ? v : undefined)),
+    /** Management assistant (A-052): Claude API key. Without it production has no assistant. */
+    ANTHROPIC_API_KEY: z
+      .string()
+      .optional()
+      .transform((v) => (v ? v : undefined)),
+    /** Outside production the labelled sandbox answers unless this is "anthropic" (and a key is set). */
+    ASSISTANT_PROVIDER: z.enum(['sandbox', 'anthropic']).optional(),
     ENABLE_API_DOCS: z
       .enum(['true', 'false'])
       .optional()

@@ -47,6 +47,7 @@ test.describe('signed-in screens', () => {
     ['/appointments', 'appointments'],
     ['/recovery', 'recovery'],
     ['/reports', 'reports'],
+    ['/insights', 'insights'],
     ['/targets', 'targets'],
     ['/incentives', 'incentives'],
     ['/settings', 'settings'],

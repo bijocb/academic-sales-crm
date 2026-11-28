@@ -910,111 +910,142 @@ export class ReportsService {
     return this.db.tenant(p.organizationId, async (tx) => {
       const ctx = await this.context(tx, p, f);
       const d = await this.collect(tx, ctx);
-      const key = (r: Rec) =>
-        (by === 'executive'
-          ? r.userId
-          : by === 'course'
-            ? r.courseId
-            : by === 'source'
-              ? r.sourceId
-              : by === 'campaign'
-                ? r.campaignId
-                : r.brandId) ?? 'none';
-      const groups = new Map<string, Rec[]>();
-      const add = (metric: string, rs: Rec[]) => {
-        for (const r of rs) {
-          const k = `${key(r)}|${metric}`;
-          groups.set(k, [...(groups.get(k) ?? []), r]);
-        }
-      };
-      const sets: Record<string, Rec[]> = {
-        leadsCreated: d.leadsCreated,
-        assigned: d.assigned,
-        contacted: d.contacted,
-        slaStarted: d.slaStarted,
-        openTasks: d.openTasks,
-        openLeads: d.openLeads,
-        lost: d.lost,
-        recovered: d.recovered,
-        counselling: d.counselling,
-        admissionsConfirmed: d.admissionsConfirmed,
-        admissionsFirstContact: d.admissionsFirstContact,
-        admissionsCancelled: d.admissionsCancelled,
-        payments: d.payments,
-        refundsPaid: d.refundsPaid,
-      };
-      for (const [m, rs] of Object.entries(sets)) add(m, rs);
-      const keys = [...new Set([...groups.keys()].map((k) => k.split('|')[0]))];
-      const labels = await this.labels(
-        tx,
-        by,
-        keys.filter((k) => k !== 'none'),
-      );
-      const spend = by === 'campaign' || by === 'source' ? await this.spend(tx, ctx) : null;
-      const rows = keys.map((k) => {
-        const g = (m: string) => groups.get(`${k}|${m}`) ?? [];
-        const sla = g('slaStarted');
-        const collected = this.money(g('payments'));
-        const refunded = this.money(g('refundsPaid'));
-        const currencies = [
-          ...new Set([...Object.keys(collected), ...Object.keys(refunded)]),
-        ].sort();
-        const leadsCreated = g('leadsCreated').length;
-        const confirmed = g('admissionsConfirmed').length;
-        const spent = spend
-          ? by === 'campaign'
-            ? spend.byCampaign.get(k)
-            : spend.bySource.get(k)
-          : undefined;
-        const ages = g('openLeads').map((r) => r.flags!.ageDays as number);
-        return {
-          key: k,
-          label:
-            k === 'none' ? (by === 'executive' ? 'Unassigned' : 'Not set') : (labels.get(k) ?? k),
-          leadsCreated,
-          assigned: this.distinctLeads(g('assigned')),
-          contacted: this.distinctLeads(g('contacted')),
-          firstResponse: {
-            started: sla.length,
-            withinTarget: sla.filter((s) => s.flags!.compliant).length,
-          },
-          openLeads: g('openLeads').length,
-          avgOpenLeadAgeDays: ages.length
-            ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length)
-            : null,
-          overdueTasks: g('openTasks').filter((t) => t.flags!.overdue).length,
-          lost: this.distinctLeads(g('lost')),
-          recovered: this.distinctLeads(g('recovered')),
-          counselling: g('counselling').length,
-          admissions: {
-            confirmed,
-            cancelled: g('admissionsCancelled').length,
-            firstContact: g('admissionsFirstContact').length,
-          },
-          revenue: currencies.map((c) => ({
-            currency: c,
-            netMinor: (collected[c] ?? 0n) - (refunded[c] ?? 0n),
-          })),
-          ...(spent
-            ? {
-                spend: spent,
-                cpl: spent.map((s) => ({
-                  currency: s.currency,
-                  minor: leadsCreated ? s.amountMinor / BigInt(leadsCreated) : null,
-                })),
-                cpa: spent.map((s) => ({
-                  currency: s.currency,
-                  minor: confirmed ? s.amountMinor / BigInt(confirmed) : null,
-                })),
-              }
-            : {}),
-        };
-      });
-      rows.sort((x, y) =>
-        x.key === 'none' ? 1 : y.key === 'none' ? -1 : x.label.localeCompare(y.label),
-      );
+      const rows = await this.rowsFor(tx, ctx, d, by);
       return { ...this.disclosure(ctx), by, rows };
     });
+  }
+
+  /** The caller's effective report scope for a filter (who and which brands the numbers cover). */
+  scopeOf(p: OrgPrincipal, f: ReportFilter) {
+    return this.db.tenant(p.organizationId, (tx) => this.scopeFor(tx, p, f));
+  }
+
+  /**
+   * One period's figures for management insights (A-051): the summary metrics and the executive, source and
+   * campaign breakdowns from a single collection, under the caller's report scope.
+   */
+  insightFigures(p: OrgPrincipal, f: ReportFilter) {
+    return this.db.tenant(p.organizationId, async (tx) => {
+      const ctx = await this.context(tx, p, f);
+      const d = await this.collect(tx, ctx);
+      return {
+        ctx,
+        metrics: this.metrics(d),
+        executives: await this.rowsFor(tx, ctx, d, 'executive'),
+        sources: await this.rowsFor(tx, ctx, d, 'source'),
+        campaigns: await this.rowsFor(tx, ctx, d, 'campaign'),
+      };
+    });
+  }
+
+  private async rowsFor(
+    tx: Tx,
+    ctx: ReportContext,
+    d: Awaited<ReturnType<ReportsService['collect']>>,
+    by: Breakdown,
+  ) {
+    const key = (r: Rec) =>
+      (by === 'executive'
+        ? r.userId
+        : by === 'course'
+          ? r.courseId
+          : by === 'source'
+            ? r.sourceId
+            : by === 'campaign'
+              ? r.campaignId
+              : r.brandId) ?? 'none';
+    const groups = new Map<string, Rec[]>();
+    const add = (metric: string, rs: Rec[]) => {
+      for (const r of rs) {
+        const k = `${key(r)}|${metric}`;
+        groups.set(k, [...(groups.get(k) ?? []), r]);
+      }
+    };
+    const sets: Record<string, Rec[]> = {
+      leadsCreated: d.leadsCreated,
+      assigned: d.assigned,
+      contacted: d.contacted,
+      slaStarted: d.slaStarted,
+      openTasks: d.openTasks,
+      openLeads: d.openLeads,
+      lost: d.lost,
+      recovered: d.recovered,
+      counselling: d.counselling,
+      admissionsConfirmed: d.admissionsConfirmed,
+      admissionsFirstContact: d.admissionsFirstContact,
+      admissionsCancelled: d.admissionsCancelled,
+      payments: d.payments,
+      refundsPaid: d.refundsPaid,
+    };
+    for (const [m, rs] of Object.entries(sets)) add(m, rs);
+    const keys = [...new Set([...groups.keys()].map((k) => k.split('|')[0]))];
+    const labels = await this.labels(
+      tx,
+      by,
+      keys.filter((k) => k !== 'none'),
+    );
+    const spend = by === 'campaign' || by === 'source' ? await this.spend(tx, ctx) : null;
+    const rows = keys.map((k) => {
+      const g = (m: string) => groups.get(`${k}|${m}`) ?? [];
+      const sla = g('slaStarted');
+      const collected = this.money(g('payments'));
+      const refunded = this.money(g('refundsPaid'));
+      const currencies = [...new Set([...Object.keys(collected), ...Object.keys(refunded)])].sort();
+      const leadsCreated = g('leadsCreated').length;
+      const confirmed = g('admissionsConfirmed').length;
+      const spent = spend
+        ? by === 'campaign'
+          ? spend.byCampaign.get(k)
+          : spend.bySource.get(k)
+        : undefined;
+      const ages = g('openLeads').map((r) => r.flags!.ageDays as number);
+      return {
+        key: k,
+        label:
+          k === 'none' ? (by === 'executive' ? 'Unassigned' : 'Not set') : (labels.get(k) ?? k),
+        leadsCreated,
+        assigned: this.distinctLeads(g('assigned')),
+        contacted: this.distinctLeads(g('contacted')),
+        firstResponse: {
+          started: sla.length,
+          withinTarget: sla.filter((s) => s.flags!.compliant).length,
+        },
+        openLeads: g('openLeads').length,
+        avgOpenLeadAgeDays: ages.length
+          ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length)
+          : null,
+        overdueTasks: g('openTasks').filter((t) => t.flags!.overdue).length,
+        lost: this.distinctLeads(g('lost')),
+        recovered: this.distinctLeads(g('recovered')),
+        counselling: g('counselling').length,
+        admissions: {
+          confirmed,
+          cancelled: g('admissionsCancelled').length,
+          firstContact: g('admissionsFirstContact').length,
+        },
+        revenue: currencies.map((c) => ({
+          currency: c,
+          netMinor: (collected[c] ?? 0n) - (refunded[c] ?? 0n),
+        })),
+        ...(spent
+          ? {
+              spend: spent,
+              cpl: spent.map((s) => ({
+                currency: s.currency,
+                minor: leadsCreated ? s.amountMinor / BigInt(leadsCreated) : null,
+              })),
+              cpa: spent.map((s) => ({
+                currency: s.currency,
+                minor: confirmed ? s.amountMinor / BigInt(confirmed) : null,
+              })),
+            }
+          : {}),
+      };
+    });
+    rows.sort((x, y) =>
+      x.key === 'none' ? 1 : y.key === 'none' ? -1 : x.label.localeCompare(y.label),
+    );
+    return rows;
   }
 
   private async labels(tx: Tx, by: Breakdown, ids: string[]): Promise<Map<string, string>> {

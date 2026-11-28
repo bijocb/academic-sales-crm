@@ -82,6 +82,11 @@ import { PushService } from './push/push.service';
 import { MetaService, SECRET_BOX } from './leads/meta.service';
 import { StatusService } from './jobs/status.service';
 import { AiService } from './ai/ai.service';
+import { AssistantService } from './assistant/assistant.service';
+import { AssistantProvider, buildAssistantProvider } from './assistant/provider';
+import { DigestService } from './insights/digest.service';
+import { InsightsController } from './insights/insights.controller';
+import { InsightsService } from './insights/insights.service';
 import { ReportsController } from './reports/reports.controller';
 import { ReportsService } from './reports/reports.service';
 import { TargetsService } from './reports/targets.service';
@@ -160,6 +165,7 @@ export class AppModule implements NestModule {
         AiController,
         MetaController,
         PushController,
+        InsightsController,
         InternalController,
       ],
       providers: [
@@ -204,6 +210,15 @@ export class AppModule implements NestModule {
         AiService,
         MetaService,
         PushService,
+        InsightsService,
+        AssistantService,
+        DigestService,
+        {
+          provide: AssistantProvider,
+          useFactory: (c: AppConfig) =>
+            buildAssistantProvider(c.NODE_ENV, c.ANTHROPIC_API_KEY, c.ASSISTANT_PROVIDER),
+          inject: [APP_CONFIG],
+        },
         {
           provide: PushProvider,
           useFactory: (c: AppConfig) => buildPushProvider(c.NODE_ENV, c.EXPO_ACCESS_TOKEN),

@@ -16,6 +16,7 @@
     "vercel-build": "prisma generate && tsc -p tsconfig.build.json && tsx scripts/migrate.ts --seed"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
     "@crm/contracts": "workspace:*",
     "@nestjs/common": "11.2.12",
     "@nestjs/core": "11.2.12",

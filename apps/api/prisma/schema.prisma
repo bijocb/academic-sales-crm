@@ -2223,3 +2223,40 @@ model PushDevice {
   @@index([organizationId, userId])
   @@map("push_devices")
 }
+
+// ------------------------------------------------------------------ Management assistant (A-052)
+
+/// Per-organization switch for the "Ask the CRM" assistant and the weekly AI brief. Off by default.
+model AssistantSettings {
+  id                   String   @id @default(uuid()) @db.Uuid
+  organizationId       String   @unique @map("organization_id") @db.Uuid
+  enabled              Boolean  @default(false)
+  briefEnabled         Boolean  @default(true) @map("brief_enabled")
+  monthlyQuestionLimit Int      @default(500) @map("monthly_question_limit")
+  updatedById          String?  @map("updated_by_id") @db.Uuid
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("assistant_settings")
+}
+
+/// Append-only record of every assistant question and AI brief: what was asked, the answer, tools used and tokens.
+model AssistantQuestion {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  kind           String   @default("QUESTION")
+  question       String
+  answer         String?
+  status         String
+  errorCode      String?  @map("error_code")
+  toolsUsed      Json     @default("[]") @map("tools_used")
+  provider       String
+  model          String?
+  inputTokens    Int      @default(0) @map("input_tokens")
+  outputTokens   Int      @default(0) @map("output_tokens")
+  createdAt      DateTime @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, userId, createdAt])
+  @@map("assistant_questions")
+}

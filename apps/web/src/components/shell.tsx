@@ -54,6 +54,11 @@ const NAV: NavItem[] = [
   },
   { href: '/reports', label: 'Reports', show: (s) => s.can('report.read') },
   {
+    href: '/insights',
+    label: 'Insights & assistant',
+    show: (s) => !s.me.user.isPlatformAdmin && s.can('report.read'),
+  },
+  {
     href: '/targets',
     label: 'Targets & ad spend',
     show: (s) => s.can('target.manage') || s.can('campaign.manage'),

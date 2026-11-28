@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, ErrorText, PageHeader, Table, Td, useLoad } from '@/components/ui';
+import { InsightsCard } from '@/components/insights';
 import { TargetProgress } from '@/components/report-tiles';
 import {
   PerfTiles,
@@ -94,6 +95,7 @@ export default function DashboardPage() {
         }
       />
       <div className="space-y-6">
+        {manager && <InsightsCard />}
         {sales && (
           <section aria-label="My performance" className="space-y-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
