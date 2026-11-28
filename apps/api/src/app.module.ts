@@ -62,6 +62,12 @@ import { PipelineService } from './pipeline/pipeline.service';
 import { QuotationsService } from './pipeline/quotations.service';
 import { RecoveryController } from './recovery/recovery.controller';
 import { RecoveryService } from './recovery/recovery.service';
+import { AdmissionsController } from './admissions/admissions.controller';
+import { AdmissionsService } from './admissions/admissions.service';
+import { AdmissionConfigService } from './admissions/admission-config.service';
+import { DbDocumentStorage, DocumentStorage } from './admissions/document-storage';
+import { DownloadLinks } from './admissions/download-links';
+import { buildLmsRegistry, LmsRegistry } from './admissions/lms';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -116,6 +122,7 @@ export class AppModule implements NestModule {
         EngagementController,
         PipelineController,
         RecoveryController,
+        AdmissionsController,
         InternalController,
       ],
       providers: [
@@ -151,6 +158,15 @@ export class AppModule implements NestModule {
         PipelineService,
         QuotationsService,
         RecoveryService,
+        AdmissionsService,
+        AdmissionConfigService,
+        DownloadLinks,
+        { provide: DocumentStorage, useClass: DbDocumentStorage },
+        {
+          provide: LmsRegistry,
+          useFactory: (c: AppConfig) => buildLmsRegistry(c.NODE_ENV),
+          inject: [APP_CONFIG],
+        },
         {
           provide: ProviderRegistry,
           useFactory: (c: AppConfig) => buildProviderRegistry(c.NODE_ENV),

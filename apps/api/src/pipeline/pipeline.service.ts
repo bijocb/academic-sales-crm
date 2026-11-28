@@ -86,7 +86,7 @@ export class PipelineService {
   // --------------------------------------------------------- readiness
   /** Which stage fields this lead currently satisfies (see the table in PHASE-09.md). */
   private async evaluate(tx: Tx, lead: LeadRow): Promise<Record<StageField, FieldState>> {
-    const [q, calls, connected, counselling, quotes] = await Promise.all([
+    const [q, calls, connected, counselling, quotes, admission] = await Promise.all([
       tx.leadQualification.findUnique({ where: { leadId: lead.id } }),
       tx.activity.count({ where: { leadId: lead.id, type: 'CALL' } }),
       tx.activity.count({ where: { leadId: lead.id, type: 'CALL', outcome: 'CONNECTED' } }),
@@ -98,6 +98,7 @@ export class PipelineService {
         where: { leadId: lead.id, status: { in: ['OPEN', 'ACCEPTED'] } },
         orderBy: { createdAt: 'desc' },
       }),
+      tx.admission.findFirst({ where: { leadId: lead.id, status: 'CONFIRMED' } }),
     ]);
     const accepted = quotes.find((x) => x.status === 'ACCEPTED');
     const has = (v: unknown) =>
@@ -123,7 +124,10 @@ export class PipelineService {
       feeQuote: { ok: quotes.length > 0, detail: quotes[0]?.number },
       amountDue: { ok: !!accepted, detail: accepted ? String(accepted.totalMinor) : undefined },
       paymentStatus: { ok: !!accepted, detail: accepted ? 'Pending' : undefined },
-      admissionId: { ok: false, detail: later },
+      admissionId: {
+        ok: !!admission?.admissionNumber,
+        detail: admission?.admissionNumber ?? later,
+      },
       paymentVerified: { ok: false, detail: later },
     };
   }

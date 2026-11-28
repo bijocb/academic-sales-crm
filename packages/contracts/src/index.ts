@@ -7,4 +7,5 @@ export * from './tasks';
 export * from './engagement';
 export * from './pipeline';
 export * from './recovery';
+export * from './admissions';
 export { z } from 'zod';

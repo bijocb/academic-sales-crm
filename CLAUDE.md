@@ -36,7 +36,7 @@ Read first: `docs/SRS.md` (spec), `docs/DECISIONS.md` (overrides SRS where they 
 - New migration (the shadow database cannot replay migration 1, so diff against the live dev DB):
   `cd apps/api && set -a && . ../../.env && set +a && mkdir -p prisma/migrations/<timestamp>_<name> && npx prisma migrate diff --from-url "$MIGRATION_DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script > prisma/migrations/<timestamp>_<name>/migration.sql`
   then append CHECKs, `GRANT … TO crm_app` and the RLS `tenant_isolation` block for every new tenant table, and run `pnpm db:migrate`.
-  **Check the diff for `DROP INDEX` of hand-written indexes** (`persons_org_phone_prefix_idx`, `tasks_one_initial_per_lead`, `sla_instances_one_active_per_lead`, `recovery_cases_one_live_per_lead`) and of hand-written foreign keys (every `DROP CONSTRAINT "…_fkey"` — all of them are hand-written), and delete those lines.
+  **Check the diff for `DROP INDEX` of hand-written indexes** (`persons_org_phone_prefix_idx`, `tasks_one_initial_per_lead`, `sla_instances_one_active_per_lead`, `recovery_cases_one_live_per_lead`, `admissions_one_live_per_lead`) and of hand-written foreign keys (every `DROP CONSTRAINT "…_fkey"` — all of them are hand-written), and delete those lines.
 - New brand-level configuration needs a default in `src/settings/brand-defaults.ts` (back-filled on every deploy).
 
 ## Local gotchas

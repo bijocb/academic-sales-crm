@@ -28,14 +28,19 @@ export async function api<T = unknown>(
   path: string,
   init: { method?: string; body?: unknown; retry?: boolean } = {},
 ): Promise<T> {
+  const isForm = typeof FormData !== 'undefined' && init.body instanceof FormData;
   const res = await fetch(`/api/v1${path}`, {
     method: init.method ?? 'GET',
     credentials: 'same-origin',
     headers: {
       'x-crm-client': 'web',
-      ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}),
+      ...(init.body !== undefined && !isForm ? { 'content-type': 'application/json' } : {}),
     },
-    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+    body: isForm
+      ? (init.body as FormData)
+      : init.body !== undefined
+        ? JSON.stringify(init.body)
+        : undefined,
   });
   if (res.status === 401 && init.retry !== false && !path.startsWith('/auth/')) {
     if (await refreshOnce()) return api<T>(path, { ...init, retry: false });

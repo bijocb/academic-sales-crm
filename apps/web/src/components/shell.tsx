@@ -31,6 +31,12 @@ const NAV: NavItem[] = [
     show: (s) => !s.me.user.isPlatformAdmin && (s.can('lead.read') || s.can('lead.read_own')),
   },
   {
+    href: '/admissions',
+    label: 'Admissions',
+    show: (s) =>
+      s.can('admission.manage') || (s.can('settings.manage') && !s.me.user.isPlatformAdmin),
+  },
+  {
     href: '/recovery',
     label: 'Recovery',
     show: (s) =>

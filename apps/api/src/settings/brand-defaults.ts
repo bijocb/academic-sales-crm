@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import {
+  DEFAULT_DOCUMENT_TYPES,
   DEFAULT_LOSS_REASONS,
   DEFAULT_PIPELINE,
   DEFAULT_RECOVERY_POLICY,
@@ -84,6 +85,21 @@ export async function ensureBrandDefaults(
       data: { organizationId, brandId, ...DEFAULT_RECOVERY_POLICY },
     });
     created.push('recovery_policy');
+  }
+  if ((await tx.documentType.count({ where: { brandId } })) === 0) {
+    await tx.documentType.createMany({
+      data: DEFAULT_DOCUMENT_TYPES.map((d, i) => ({
+        organizationId,
+        brandId,
+        position: i + 1,
+        ...d,
+      })),
+    });
+    created.push('document_types');
+  }
+  if (!(await tx.admissionSettings.findUnique({ where: { brandId } }))) {
+    await tx.admissionSettings.create({ data: { organizationId, brandId } });
+    created.push('admission_settings');
   }
   return { created };
 }

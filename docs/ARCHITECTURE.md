@@ -86,6 +86,14 @@ Changes from SRS Appendix A: the three separate worker apps become one worker en
   `NODE_ENV !== 'production'`. Sending is a `message.send` job: temporary errors retry with backoff, permanent errors
   fail at once, exhausted retries fail the message and dead-letter the job. Receipts only move status forward.
 
+## 5b. Admissions and documents (Phase 11)
+
+- Admission status is driven by the document checklist until approval; approval and confirmation hold batch seats
+  (row lock on the batch, capacity check, recorded override). Confirmation (D-006) is one transaction: number,
+  seat, lead stage/status, outbox event and LMS handover.
+- Document bytes go through `DocumentStorage` (PostgreSQL by default); downloads only via short-lived HMAC links.
+- LMS handover through `LmsProvider` (sandbox outside production; manual handover otherwise) — `docs/LMS-CONTRACT.md`.
+
 ## 6. Allocation
 
 Filter → rank → pick → record:

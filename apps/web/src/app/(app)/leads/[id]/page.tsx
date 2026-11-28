@@ -20,6 +20,7 @@ import { AssignLead } from '@/components/assign-lead';
 import { LeadWork } from '@/components/task-panel';
 import { EngagePanel } from '@/components/engage-panel';
 import { MarkLost, RecoveryPanel } from '@/components/recovery-panel';
+import { AdmissionPanel } from '@/components/admission-panel';
 import { QualificationCard, QuotationsCard, StagePanel } from '@/components/pipeline-panel';
 
 const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
@@ -49,6 +50,10 @@ const TYPE_TONE: Record<string, 'blue' | 'slate' | 'amber' | 'green'> = {
   RECOVERY_STARTED: 'blue',
   RECOVERY_ATTEMPT: 'slate',
   LEAD_CLOSED: 'amber',
+  ADMISSION_STARTED: 'blue',
+  ADMISSION_STATUS: 'green',
+  DOCUMENT_UPLOADED: 'slate',
+  DOCUMENT_REJECTED: 'amber',
 };
 
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -289,6 +294,15 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
             <StagePanel
               key={`stage:${l.stage}:${l.status}:${rev}`}
               leadId={l.id}
+              onChanged={changed}
+            />
+          )}
+          {l.status !== 'MERGED' && (
+            <AdmissionPanel
+              key={`adm:${l.status}:${rev}`}
+              leadId={l.id}
+              leadStatus={l.status}
+              canStart={(l.canEdit && can('pipeline.transition')) || can('admission.manage')}
               onChanged={changed}
             />
           )}

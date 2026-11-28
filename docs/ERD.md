@@ -152,3 +152,19 @@ erDiagram
 | `lead_status_history` | **Append-only**: every status change (lost, recovery, reopen, close, hold/resume) with reason and actor                                                 |
 | `recovery_cases`      | SCHEDULED → ACTIVE → RECOVERED / CLOSED / CANCELLED; loss reason and notes; owner follows the lead owner; one live case per lead (partial unique index) |
 | `recovery_attempts`   | **Append-only**: attempt number, channel, result, notes, alternative course offered, next date                                                          |
+
+## Phase 11 additions
+
+| Table                          | Notes                                                                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `students`                     | One per person: legal name, date of birth, guardian, address, nationality, ID type/number (PII)                                                   |
+| `admission_settings`           | Per brand: admission number format, confirm-only-after-approval                                                                                   |
+| `document_types`               | Per brand checklist items (code, label, required by default, accepted file types)                                                                 |
+| `course_document_requirements` | Per course override of required / optional                                                                                                        |
+| `admissions`                   | Lead, student, course, batch, quotation, status, admission number (unique per org), seat held / override with reason; one live admission per lead |
+| `admission_status_history`     | **Append-only** status changes with reason and actor                                                                                              |
+| `admission_documents`          | Checklist item per admission: MISSING / UPLOADED / VERIFIED / REJECTED (reason), current file                                                     |
+| `document_files`               | **Append-only** file versions: name, type, size, SHA-256, storage key                                                                             |
+| `document_blobs`               | **Append-only** file contents (default storage)                                                                                                   |
+| `document_reviews`             | **Append-only** verify / reject decisions                                                                                                         |
+| `lms_handovers`                | One per confirmed admission: payload snapshot, status, provider reference                                                                         |
