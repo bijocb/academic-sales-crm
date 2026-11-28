@@ -68,6 +68,9 @@ import { AdmissionConfigService } from './admissions/admission-config.service';
 import { DbDocumentStorage, DocumentStorage } from './admissions/document-storage';
 import { DownloadLinks } from './admissions/download-links';
 import { buildLmsRegistry, LmsRegistry } from './admissions/lms';
+import { FinanceController } from './finance/finance.controller';
+import { FinanceService } from './finance/finance.service';
+import { buildGatewayRegistry, GatewayRegistry } from './finance/gateway';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -123,6 +126,7 @@ export class AppModule implements NestModule {
         PipelineController,
         RecoveryController,
         AdmissionsController,
+        FinanceController,
         InternalController,
       ],
       providers: [
@@ -160,6 +164,12 @@ export class AppModule implements NestModule {
         RecoveryService,
         AdmissionsService,
         AdmissionConfigService,
+        FinanceService,
+        {
+          provide: GatewayRegistry,
+          useFactory: (c: AppConfig) => buildGatewayRegistry(c.NODE_ENV, c.SANDBOX_GATEWAY_SECRET),
+          inject: [APP_CONFIG],
+        },
         DownloadLinks,
         { provide: DocumentStorage, useClass: DbDocumentStorage },
         {

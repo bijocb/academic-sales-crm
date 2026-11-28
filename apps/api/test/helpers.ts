@@ -51,7 +51,7 @@ export async function createTestContext(): Promise<TestContext> {
     .overrideProvider(Clock)
     .useValue(clock)
     .compile();
-  const app = moduleRef.createNestApplication();
+  const app = moduleRef.createNestApplication({ rawBody: true });
   configureApp(app, config);
   await app.init();
   const owner = new PrismaClient({ datasourceUrl: TEST_ENV.MIGRATION_DATABASE_URL });
@@ -74,7 +74,7 @@ export async function resetDatabase(owner: PrismaClient): Promise<void> {
   await owner.$transaction([
     owner.$executeRawUnsafe(`SET LOCAL session_replication_role = replica`),
     owner.$executeRawUnsafe(
-      `TRUNCATE lms_handovers, document_reviews, document_files, document_blobs, admission_documents, admission_status_history, admissions, course_document_requirements, document_types, admission_settings, students, recovery_attempts, recovery_cases, lead_status_history, recovery_policies, loss_reasons, saved_views, quotations, lead_qualifications, lead_stage_history, message_events, outbound_messages, activities, message_templates, appointments, jobs, sla_events, sla_instances, tasks, notifications, lead_assignments, allocation_runs, allocation_rules, allocation_settings, user_leaves, lead_events, person_merges, duplicate_candidates, outbox_events, org_counters, enquiries, intake_exceptions, lead_imports, intake_keys, campaigns, leads, persons, lead_sources, sla_checkpoints, sla_policies, pipeline_stages, working_hours, holidays, batches, courses, course_categories, audit_logs, auth_tokens, sessions, team_members, role_assignments, role_permissions, roles, teams, branches, users, brands, organizations CASCADE`,
+      `TRUNCATE refund_events, refunds, payments, payment_events, payment_attempts, instalments, fee_adjustments, fee_plans, finance_settings, lms_handovers, document_reviews, document_files, document_blobs, admission_documents, admission_status_history, admissions, course_document_requirements, document_types, admission_settings, students, recovery_attempts, recovery_cases, lead_status_history, recovery_policies, loss_reasons, saved_views, quotations, lead_qualifications, lead_stage_history, message_events, outbound_messages, activities, message_templates, appointments, jobs, sla_events, sla_instances, tasks, notifications, lead_assignments, allocation_runs, allocation_rules, allocation_settings, user_leaves, lead_events, person_merges, duplicate_candidates, outbox_events, org_counters, enquiries, intake_exceptions, lead_imports, intake_keys, campaigns, leads, persons, lead_sources, sla_checkpoints, sla_policies, pipeline_stages, working_hours, holidays, batches, courses, course_categories, audit_logs, auth_tokens, sessions, team_members, role_assignments, role_permissions, roles, teams, branches, users, brands, organizations CASCADE`,
     ),
   ]);
 }

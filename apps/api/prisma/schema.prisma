@@ -1574,6 +1574,7 @@ enum AdmissionStatus {
   CONFIRMED
   DEFERRED
   CANCELLED
+  CANCELLED_REFUNDED
 }
 
 enum DocumentStatus {
@@ -1774,4 +1775,179 @@ model LmsHandover {
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("lms_handovers")
+}
+
+// ---------------------------------------------------------------- Phase 12
+
+enum AttemptStatus {
+  INITIATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  DISPUTED
+  EXPIRED
+}
+
+enum PaymentMethod {
+  GATEWAY
+  CASH
+  BANK_TRANSFER
+  UPI
+  CHEQUE
+  CARD_MACHINE
+}
+
+model FinanceSettings {
+  id                    String   @id @default(uuid()) @db.Uuid
+  organizationId        String   @map("organization_id") @db.Uuid
+  brandId               String   @unique @map("brand_id") @db.Uuid
+  receiptNumberFormat   String   @default("{BRAND}-RCPT-{YYYY}-{SEQ:6}") @map("receipt_number_format")
+  minConfirmAmountMinor BigInt   @default(1) @map("min_confirm_amount_minor")
+  defaultDueDays        Int      @default(7) @map("default_due_days")
+  refundMakerChecker    Boolean  @default(true) @map("refund_maker_checker")
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("finance_settings")
+}
+
+model FeePlan {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  brandId         String   @map("brand_id") @db.Uuid
+  admissionId     String   @unique @map("admission_id") @db.Uuid
+  currency        Currency
+  baseAmountMinor BigInt   @map("base_amount_minor")
+  createdById     String?  @map("created_by_id") @db.Uuid
+  createdAt       DateTime @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([organizationId, id])
+  @@map("fee_plans")
+}
+
+/// Append-only signed changes to the fee (concession, penalty, correction).
+model FeeAdjustment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  planId         String   @map("plan_id") @db.Uuid
+  amountMinor    BigInt   @map("amount_minor")
+  reason         String
+  createdById    String?  @map("created_by_id") @db.Uuid
+  createdAt      DateTime @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, planId])
+  @@map("fee_adjustments")
+}
+
+model Instalment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  planId         String   @map("plan_id") @db.Uuid
+  seq            Int
+  dueDate        DateTime @map("due_date") @db.Date
+  amountMinor    BigInt   @map("amount_minor")
+
+  @@unique([planId, seq])
+  @@map("instalments")
+}
+
+model PaymentAttempt {
+  id              String        @id @default(uuid()) @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  brandId         String        @map("brand_id") @db.Uuid
+  planId          String        @map("plan_id") @db.Uuid
+  admissionId     String        @map("admission_id") @db.Uuid
+  provider        String
+  providerOrderId String        @map("provider_order_id")
+  amountMinor     BigInt        @map("amount_minor")
+  currency        Currency
+  status          AttemptStatus @default(INITIATED)
+  checkoutUrl     String?       @map("checkout_url")
+  mismatch        String?
+  createdById     String?       @map("created_by_id") @db.Uuid
+  createdAt       DateTime      @map("created_at") @db.Timestamptz(3)
+  lastCheckedAt   DateTime?     @map("last_checked_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([provider, providerOrderId])
+  @@index([organizationId, status, createdAt])
+  @@map("payment_attempts")
+}
+
+/// Append-only: every gateway webhook as received (idempotent per provider event id).
+model PaymentEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  provider       String
+  eventId        String   @map("event_id")
+  type           String
+  signatureValid Boolean  @map("signature_valid")
+  payload        Json
+  attemptId      String?  @map("attempt_id") @db.Uuid
+  result         String
+  receivedAt     DateTime @map("received_at") @db.Timestamptz(3)
+
+  @@unique([provider, eventId])
+  @@map("payment_events")
+}
+
+/// Append-only: verified money only. Never edited or deleted (rule 4).
+model Payment {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  brandId        String        @map("brand_id") @db.Uuid
+  admissionId    String        @map("admission_id") @db.Uuid
+  planId         String        @map("plan_id") @db.Uuid
+  attemptId      String?       @unique @map("attempt_id") @db.Uuid
+  amountMinor    BigInt        @map("amount_minor")
+  currency       Currency
+  method         PaymentMethod
+  reference      String?
+  receiptNumber  String        @map("receipt_number")
+  verification   String
+  verifiedById   String?       @map("verified_by_id") @db.Uuid
+  receivedAt     DateTime      @map("received_at") @db.Timestamptz(3)
+  recordedAt     DateTime      @map("recorded_at") @db.Timestamptz(3)
+  notes          String?
+
+  @@unique([organizationId, receiptNumber])
+  @@unique([organizationId, id])
+  @@index([organizationId, admissionId, receivedAt])
+  @@index([organizationId, brandId, receivedAt])
+  @@map("payments")
+}
+
+/// Immutable refund request; its life is in refund_events.
+model Refund {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  brandId        String   @map("brand_id") @db.Uuid
+  paymentId      String   @map("payment_id") @db.Uuid
+  admissionId    String   @map("admission_id") @db.Uuid
+  amountMinor    BigInt   @map("amount_minor")
+  currency       Currency
+  reason         String
+  requestedById  String?  @map("requested_by_id") @db.Uuid
+  requestedAt    DateTime @map("requested_at") @db.Timestamptz(3)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, paymentId])
+  @@map("refunds")
+}
+
+/// Append-only: APPROVED / REJECTED / PAID decisions on a refund.
+model RefundEvent {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  refundId       String    @map("refund_id") @db.Uuid
+  type           String
+  note           String?
+  method         String?
+  reference      String?
+  paidOn         DateTime? @map("paid_on") @db.Date
+  actorUserId    String?   @map("actor_user_id") @db.Uuid
+  occurredAt     DateTime  @map("occurred_at") @db.Timestamptz(3)
+
+  @@index([organizationId, refundId, occurredAt])
+  @@map("refund_events")
 }

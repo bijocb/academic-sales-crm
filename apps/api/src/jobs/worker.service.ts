@@ -4,6 +4,7 @@ import {
   Logger,
   OnApplicationBootstrap,
   OnApplicationShutdown,
+  Optional,
 } from '@nestjs/common';
 import { hostname } from 'node:os';
 import { AllocationService } from '../allocation/allocation.service';
@@ -13,6 +14,7 @@ import { Db } from '../db/db.service';
 import { isWorkingTime } from '../settings/business-calendar';
 import { SettingsService } from '../settings/settings.service';
 import { JobsService, RunSummary } from './jobs.service';
+import { FinanceService } from '../finance/finance.service';
 
 const QUEUED = ['OPEN', 'ON_HOLD', 'IN_RECOVERY'] as const;
 /** A queued lead is retried at most this often by the background drain. */
@@ -22,6 +24,7 @@ export interface TickResult {
   skipped?: boolean;
   jobs?: RunSummary;
   queue?: { brands: number; attempted: number; assigned: number };
+  payments?: { checked: number };
 }
 
 /**
@@ -42,6 +45,7 @@ export class WorkerService implements OnApplicationBootstrap, OnApplicationShutd
     private readonly settings: SettingsService,
     private readonly db: Db,
     private readonly clock: Clock,
+    @Optional() private readonly finance?: FinanceService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -62,8 +66,10 @@ export class WorkerService implements OnApplicationBootstrap, OnApplicationShutd
     try {
       const jobs = await this.jobs.runDue({ workerId: this.workerId });
       const queue = await this.drainQueues();
-      if (jobs.claimed || queue.attempted) this.logger.log({ jobs, queue }, 'Tick');
-      return { jobs, queue };
+      const payments = (await this.finance?.reconcilePending()) ?? { checked: 0 };
+      if (jobs.claimed || queue.attempted || payments.checked)
+        this.logger.log({ jobs, queue, payments }, 'Tick');
+      return { jobs, queue, payments };
     } catch (e) {
       this.logger.error({ err: e }, 'Tick failed');
       throw e;

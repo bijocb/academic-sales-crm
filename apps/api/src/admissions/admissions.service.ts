@@ -219,7 +219,11 @@ export class AdmissionsService implements OnModuleInit {
       if (!this.canWork(p, lead.brandId)) throw forbidden();
       if (lead.status !== 'OPEN')
         throw badRequest('LEAD_NOT_OPEN', 'Admissions start from open leads');
-      if (await tx.admission.findFirst({ where: { leadId, status: { not: 'CANCELLED' } } }))
+      if (
+        await tx.admission.findFirst({
+          where: { leadId, status: { notIn: ['CANCELLED', 'CANCELLED_REFUNDED'] } },
+        })
+      )
         throw conflict('ADMISSION_EXISTS', 'This lead already has an admission');
 
       const quotation = input.quotationId

@@ -128,7 +128,10 @@ export class PipelineService {
         ok: !!admission?.admissionNumber,
         detail: admission?.admissionNumber ?? later,
       },
-      paymentVerified: { ok: false, detail: later },
+      paymentVerified: {
+        ok: !!admission?.admissionNumber,
+        detail: admission ? 'Verified payment recorded' : later,
+      },
     };
   }
 

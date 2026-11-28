@@ -168,3 +168,17 @@ erDiagram
 | `document_blobs`               | **Append-only** file contents (default storage)                                                                                                   |
 | `document_reviews`             | **Append-only** verify / reject decisions                                                                                                         |
 | `lms_handovers`                | One per confirmed admission: payload snapshot, status, provider reference                                                                         |
+
+## Phase 12 additions
+
+| Table / column             | Notes                                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| admission status           | + `CANCELLED_REFUNDED` (A-007b)                                                                               |
+| `finance_settings`         | Per brand: receipt number format, minimum confirming amount, default due days, refund maker–checker           |
+| `fee_plans`                | One per admission: currency, base amount (minor units)                                                        |
+| `fee_adjustments`          | **Append-only** signed adjustments with reason                                                                |
+| `instalments`              | Schedule (seq, due date, amount); paid/due computed oldest-first                                              |
+| `payment_attempts`         | Gateway orders: PENDING → SUCCEEDED / FAILED / DISPUTED / EXPIRED, mismatch flag; unique (provider, order id) |
+| `payment_events`           | **Append-only** webhooks as received; unique (provider, event id); invalid signatures stored under random ids |
+| `payments`                 | **Append-only** verified money: amount, method, reference, receipt number (unique), verification source       |
+| `refunds`, `refund_events` | **Append-only** request + APPROVED / REJECTED / PAID decisions                                                |

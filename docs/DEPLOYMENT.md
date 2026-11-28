@@ -28,6 +28,8 @@ role, creates the platform admin (`SEED_PLATFORM_ADMIN_*`) and — because `ALLO
   - On any long-lived host (`pnpm start`, Docker) the in-process worker runs every 15 s (`WORKER_MODE=interval`).
 - WhatsApp and click-to-call show as "not configured" in production until a provider is chosen (O-06); sandbox
   adapters never run there. Calls are logged manually; email goes through the configured mailer.
+- No payment gateway runs in production yet (O-09): Accounts users record verified payments manually; the sandbox
+  gateway and its checkout pages exist only in development and tests.
 - Login rate limiting is per function instance (in memory) until Redis is added.
 
 ## Container alternative

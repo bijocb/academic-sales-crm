@@ -46,6 +46,8 @@ const EnvSchema = z
     /** `interval`: run background jobs in-process (long-lived server). `off`: only via /internal/tick. */
     WORKER_MODE: z.enum(['interval', 'off']).optional(),
     WORKER_INTERVAL_MS: z.coerce.number().int().min(1000).max(600_000).default(15_000),
+    /** DEVELOPMENT/TEST sandbox gateway webhook secret (the sandbox never runs in production). */
+    SANDBOX_GATEWAY_SECRET: z.string().min(16).default('sandbox-gateway-secret-dev-only'),
     ENABLE_API_DOCS: z
       .enum(['true', 'false'])
       .optional()

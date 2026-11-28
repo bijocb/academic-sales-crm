@@ -36,7 +36,10 @@ export function configureApp(app: INestApplication, config: AppConfig): void {
 }
 
 export async function createApp(config: AppConfig): Promise<INestApplication> {
-  const app = await NestFactory.create(AppModule.forRoot(config), { bufferLogs: true });
+  const app = await NestFactory.create(AppModule.forRoot(config), {
+    bufferLogs: true,
+    rawBody: true,
+  });
   app.useLogger(app.get(Logger));
   configureApp(app, config);
   return app;

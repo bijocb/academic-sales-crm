@@ -8,4 +8,5 @@ export * from './engagement';
 export * from './pipeline';
 export * from './recovery';
 export * from './admissions';
+export * from './finance';
 export { z } from 'zod';

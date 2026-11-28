@@ -94,6 +94,15 @@ Changes from SRS Appendix A: the three separate worker apps become one worker en
 - Document bytes go through `DocumentStorage` (PostgreSQL by default); downloads only via short-lived HMAC links.
 - LMS handover through `LmsProvider` (sandbox outside production; manual handover otherwise) — `docs/LMS-CONTRACT.md`.
 
+## 5c. Payments (Phase 12)
+
+- A `payments` row is written only for verified money (signed webhook, server-side reconciliation, or Accounts'
+  manual verification) and never changes. Gateway orders live in `payment_attempts`; raw webhooks in append-only
+  `payment_events` (unique provider event id → idempotent). Signatures are checked on the raw request body.
+- The scheduler tick reconciles pending attempts older than 10 minutes with the gateway (missed webhooks).
+- The first verified payment confirms the admission (D-006) in a separate transaction, so a blocked confirmation never
+  loses the payment. Refunds are an immutable request plus append-only decisions; a full refund cancels the admission.
+
 ## 6. Allocation
 
 Filter → rank → pick → record:

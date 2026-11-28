@@ -37,6 +37,11 @@ const NAV: NavItem[] = [
       s.can('admission.manage') || (s.can('settings.manage') && !s.me.user.isPlatformAdmin),
   },
   {
+    href: '/finance',
+    label: 'Finance',
+    show: (s) => s.can('payment.read') || s.can('refund.approve'),
+  },
+  {
     href: '/recovery',
     label: 'Recovery',
     show: (s) =>

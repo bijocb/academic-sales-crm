@@ -176,3 +176,22 @@ view\* = any of `lead.assign`, `lead.reassign`, `allocation.manage` in the brand
 | `GET/PUT /admission-settings?brandId`                   | read: brand visible; write: `settings.manage`              | `{ numberFormat, requireApprovalToConfirm }`                                                                       |
 
 Confirmation has no endpoint in this phase: per D-006 it is triggered by the first verified payment (Phase 12).
+
+## Phase 12 — payments and finance
+
+| Method & path                                                | Permission                                            | Notes                                                                                                            |
+| ------------------------------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `GET /admissions/:id/finance`                                | `payment.read`, or sales working the lead             | plan (created on first view), schedule with paid/due, payments, refunds, links                                   |
+| `PUT /fee-plans/:id/schedule`                                | `payment.record`; sales only before the first payment | `{ mode: EQUAL, count, firstDueDate, intervalDays }` or `{ mode: CUSTOM, instalments }`; 400 `SCHEDULE_MISMATCH` |
+| `POST /fee-plans/:id/adjustments`                            | `payment.record`                                      | `{ amountMinor (signed), reason }`                                                                               |
+| `POST /fee-plans/:id/payment-links`                          | sales working the lead                                | `{ amountMinor? }` → attempt with `checkoutUrl`; 409 `GATEWAY_NOT_CONFIGURED`                                    |
+| `GET /payment-attempts/:id`, `POST …/check`                  | as finance view                                       | `check` asks the gateway server-side                                                                             |
+| `POST /fee-plans/:id/payments`                               | `payment.record`                                      | manual verified payment `{ amountMinor, method, reference?, receivedAt }`; 400 `OVERPAYMENT`                     |
+| `GET /payments/:id/receipt`                                  | as finance view                                       | receipt (not a tax invoice)                                                                                      |
+| `POST /payments/:id/refunds`                                 | `refund.request`                                      | `{ amountMinor, reason }`; 400 `REFUND_TOO_LARGE`                                                                |
+| `POST /refunds/:id/approve\|reject\|paid`                    | `refund.approve` (approver ≠ requester)               | paid `{ method, reference, paidOn }`                                                                             |
+| `GET /finance/refunds?status`, `GET /finance/reconciliation` | `payment.read` / `refund.approve`                     |                                                                                                                  |
+| `POST /admissions/:id/confirm`                               | `admission.manage`                                    | retry a blocked confirmation; 400 `NO_VERIFIED_PAYMENT`                                                          |
+| `GET/PUT /finance-settings?brandId`                          | read: brand visible; write: `settings.manage`         |                                                                                                                  |
+| `POST /webhooks/payments/:provider`                          | gateway signature over the raw body                   | 401 `INVALID_SIGNATURE`; duplicates ignored                                                                      |
+| `GET /sandbox/checkout/:orderId`, `POST …/complete`          | none — **development/test only**, 404 in production   | sandbox hosted page that sends a signed webhook                                                                  |

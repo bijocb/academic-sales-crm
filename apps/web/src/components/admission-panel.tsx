@@ -13,6 +13,8 @@ import {
 } from '@/components/ui';
 import { api } from '@/lib/api';
 import { fmtDateTime as fmt } from '@/lib/lead-format';
+import { useSession } from '@/lib/session';
+import { FinancePanel } from '@/components/finance-panel';
 
 interface DocFile {
   id: string;
@@ -78,6 +80,7 @@ export const ADMISSION_TONE: Record<string, 'slate' | 'amber' | 'blue' | 'green'
   CONFIRMED: 'green',
   DEFERRED: 'slate',
   CANCELLED: 'red',
+  CANCELLED_REFUNDED: 'red',
 };
 const DOC_TONE = {
   MISSING: 'slate',
@@ -103,6 +106,7 @@ export function AdmissionPanel({
     () => api<{ current: AdmissionView | null }>(`/leads/${leadId}/admission`),
     [leadId],
   );
+  const { can } = useSession();
   const { busy, error, run } = useAction();
   const a = data.data?.current;
   const refresh = async () => {
@@ -110,7 +114,7 @@ export function AdmissionPanel({
     onChanged();
   };
   if (!data.data) return <ErrorText error={data.error} />;
-  if (!a || a.status === 'CANCELLED') {
+  if (!a || a.status === 'CANCELLED' || a.status === 'CANCELLED_REFUNDED') {
     if (!canStart || leadStatus !== 'OPEN') return null;
     return (
       <Card title="Admission">
@@ -184,10 +188,14 @@ export function AdmissionPanel({
         ))}
       </ul>
 
+      {(a.can.work || can('payment.read')) && (
+        <FinancePanel admissionId={a.id} onChanged={() => void refresh()} />
+      )}
+
       <StudentProfile admission={a} onSaved={() => void refresh()} />
 
       <ErrorText error={error} />
-      {a.can.manage && !['CONFIRMED', 'CANCELLED'].includes(a.status) && (
+      {a.can.manage && !['CONFIRMED', 'CANCELLED', 'CANCELLED_REFUNDED'].includes(a.status) && (
         <div className="mt-4 flex flex-wrap gap-2">
           {['UNDER_VERIFICATION', 'DOCUMENTS_PENDING'].includes(a.status) && (
             <Button disabled={busy || !a.readyForApproval} onClick={() => void act('approve')}>

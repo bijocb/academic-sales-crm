@@ -101,6 +101,10 @@ export async function ensureBrandDefaults(
     await tx.admissionSettings.create({ data: { organizationId, brandId } });
     created.push('admission_settings');
   }
+  if (!(await tx.financeSettings.findUnique({ where: { brandId } }))) {
+    await tx.financeSettings.create({ data: { organizationId, brandId } });
+    created.push('finance_settings');
+  }
   return { created };
 }
 

@@ -4,7 +4,8 @@ import type { NextFunction, Request, Response } from 'express';
 export const CSRF_HEADER = 'x-crm-client';
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
 /** Machine endpoints authenticate with their own keys and never rely on cookies. */
-const MACHINE_PATHS = ['/api/v1/webhooks/', '/api/v1/intake/'];
+/** `/sandbox/` exists only outside production (test checkout pages post plain forms). */
+const MACHINE_PATHS = ['/api/v1/webhooks/', '/api/v1/intake/', '/api/v1/sandbox/'];
 
 /**
  * Cookie-authenticated writes must carry a custom header. Browsers cannot attach custom
