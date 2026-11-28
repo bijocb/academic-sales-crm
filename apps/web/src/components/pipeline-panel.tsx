@@ -93,7 +93,7 @@ export function StagePanel({ leadId, onChanged }: { leadId: string; onChanged: (
               <ul className="mt-2 space-y-1">
                 {next.requiredFields.map((f) => (
                   <li key={f.field} className="flex items-center gap-2">
-                    <span aria-hidden className={f.ok ? 'text-green-600' : 'text-slate-400'}>
+                    <span aria-hidden className={f.ok ? 'text-green-600' : 'text-slate-500'}>
                       {f.ok ? '✓' : '○'}
                     </span>
                     <span className={f.ok ? '' : 'text-slate-600'}>{f.label}</span>

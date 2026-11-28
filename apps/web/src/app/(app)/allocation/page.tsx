@@ -275,7 +275,7 @@ function Rules({ brandId }: { brandId: string }) {
         empty={rules.data?.length === 0}
       >
         {rules.data?.map((r, i) => (
-          <tr key={r.id} className={r.active ? '' : 'text-slate-400'}>
+          <tr key={r.id} className={r.active ? '' : 'text-slate-500'}>
             <Td>{r.position}</Td>
             <Td className="font-medium">{r.name}</Td>
             <Td className="text-xs">

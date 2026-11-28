@@ -18,7 +18,8 @@ import { clearAuthCookies, REFRESH_COOKIE, setAuthCookies } from './cookies';
 import { CurrentPrincipal, Public } from './decorators';
 import type { Principal } from './principal';
 
-const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
+/** Per IP + e-mail (account lockout also applies), and at most 100 per IP across accounts. */
+const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 }, ip: { limit: 100, ttl: 60_000 } };
 
 @ApiTags('auth')
 @Controller('auth')

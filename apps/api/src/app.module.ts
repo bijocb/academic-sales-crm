@@ -15,6 +15,7 @@ import { MailModule } from './mail/mail.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/auth.guard';
 import { CsrfMiddleware } from './auth/csrf.middleware';
+import { intakeLimit, sessionTracker } from './common/throttle';
 import { HealthController } from './health/health.controller';
 import { OrganizationsAdminController } from './platform/organizations.controller';
 import { OrganizationsAdminService } from './platform/organizations.service';
@@ -72,6 +73,7 @@ import { FinanceController } from './finance/finance.controller';
 import { FinanceService } from './finance/finance.service';
 import { buildGatewayRegistry, GatewayRegistry } from './finance/gateway';
 import { AiController } from './ai/ai.controller';
+import { StatusService } from './jobs/status.service';
 import { AiService } from './ai/ai.service';
 import { ReportsController } from './reports/reports.controller';
 import { ReportsService } from './reports/reports.service';
@@ -80,6 +82,7 @@ import { TargetsService } from './reports/targets.service';
 @Module({})
 export class AppModule implements NestModule {
   static forRoot(config: AppConfig): DynamicModule {
+    intakeLimit.perMinute = config.INTAKE_PER_MINUTE;
     return {
       module: AppModule,
       imports: [
@@ -101,7 +104,21 @@ export class AppModule implements NestModule {
           },
         }),
         ThrottlerModule.forRoot({
-          throttlers: [{ name: 'default', ttl: 60_000, limit: 300 }],
+          // Per session (or per IP + e-mail for logins), plus a per-IP flood ceiling (Phase 15, SECURITY-REVIEW S7).
+          throttlers: [
+            {
+              name: 'default',
+              ttl: 60_000,
+              limit: config.THROTTLE_PER_MINUTE,
+              getTracker: sessionTracker,
+            },
+            {
+              name: 'ip',
+              ttl: 60_000,
+              limit: config.THROTTLE_IP_PER_MINUTE,
+              getTracker: (req: Record<string, unknown>) => String(req.ip ?? 'unknown'),
+            },
+          ],
           // Tests exercise many logins; they opt into throttling explicitly with this header.
           skipIf: (ctx) =>
             config.NODE_ENV === 'test' &&
@@ -159,6 +176,7 @@ export class AppModule implements NestModule {
         NotificationsService,
         JobsService,
         WorkerService,
+        StatusService,
         SlaClockService,
         TaskCoreService,
         SlaHandlersService,

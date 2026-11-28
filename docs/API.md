@@ -229,3 +229,14 @@ Advisory and in-house (A-045, `docs/AI-REVIEW.md`). Off by default per brand.
 | `GET /ai-settings?brandId`, `PUT /ai-settings?brandId`       | read: `settings.manage` or `report.read`; write: `settings.manage` | `{ enabled, scoringEnabled, nextActionsEnabled, highThresholdBp, mediumThresholdBp, minTrainingSize }`; audited                                                       |
 | `POST /ai-settings/:brandId/train`, `GET /ai-models?brandId` | `settings.manage`                                                  | train now (new version); model history                                                                                                                                |
 | `GET /leads?sort=priority`                                   | as lead list                                                       | effective priority (override, else score) first; each row has `priority: { band, score }`                                                                             |
+
+## Phase 15 — operations
+
+| Method & path              | Auth                                | Notes                                                                                                         |
+| -------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `GET /internal/status`     | `Authorization: Bearer CRON_SECRET` | 200 when healthy, 503 with `problems` (overdue, stuck or dead-lettered jobs); counts only (`docs/RUNBOOK.md`) |
+| `GET /leads?sort=priority` | as lead list                        | (Phase 14)                                                                                                    |
+
+Rate limits (429): 300 requests/min per signed-in session (`THROTTLE_PER_MINUTE`), 3,000/min per IP
+(`THROTTLE_IP_PER_MINUTE`), sign-in and password routes 10/min per IP + e-mail and 100/min per IP, intake 120/min per
+key (`INTAKE_PER_MINUTE`).

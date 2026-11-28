@@ -20,7 +20,7 @@ test('reports: KPI tiles drill down to records; breakdown by campaign shows spen
   await page.goto('/');
   await page.getByRole('link', { name: 'Reports', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
-  await page.getByRole('button', { name: 'Leads created: show records' }).click();
+  await page.getByRole('button', { name: /^Leads created \d+: show records$/ }).click();
   await expect(page.getByRole('heading', { name: 'Leads created — records' })).toBeVisible();
   await expect(page.getByRole('cell', { name: `E2E Report ${run}` })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Export summary (CSV)' })).toHaveAttribute(

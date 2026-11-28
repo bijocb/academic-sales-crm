@@ -132,7 +132,7 @@ export function AiPanel({ leadId, onChanged }: { leadId: string; onChanged: () =
                     <span className="text-slate-600">{VALUE_LABEL[f.value] ?? f.value}</span>
                   </span>
                   <span
-                    className={`tabular-nums ${f.weight > 0 ? 'text-green-700' : f.weight < 0 ? 'text-red-700' : 'text-slate-400'}`}
+                    className={`tabular-nums ${f.weight > 0 ? 'text-green-700' : f.weight < 0 ? 'text-red-700' : 'text-slate-500'}`}
                   >
                     {f.weight > 0 ? '+' : ''}
                     {f.weight}

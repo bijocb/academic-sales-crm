@@ -119,7 +119,7 @@ export function NotificationBell() {
                 >
                   <span className={n.readAt ? '' : 'font-medium'}>{n.title}</span>
                   {n.body && <span className="block text-xs text-slate-500">{n.body}</span>}
-                  <span className="block text-xs text-slate-400">
+                  <span className="block text-xs text-slate-500">
                     {new Date(n.createdAt).toLocaleString()}
                   </span>
                 </Link>

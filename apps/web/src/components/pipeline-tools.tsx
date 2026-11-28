@@ -39,7 +39,7 @@ export function SavedViews({
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
       <span className="text-slate-500">Saved views:</span>
-      {views.data?.length === 0 && <span className="text-slate-400">none yet</span>}
+      {views.data?.length === 0 && <span className="text-slate-500">none yet</span>}
       {views.data?.map((v) => (
         <span
           key={v.id}
@@ -55,7 +55,7 @@ export function SavedViews({
           <button
             type="button"
             aria-label={`Delete view ${v.name}`}
-            className="px-1.5 py-1 text-slate-400 hover:text-red-600"
+            className="px-1.5 py-1 text-slate-500 hover:text-red-600"
             onClick={() =>
               void run(async () => {
                 await api(`/saved-views/${v.id}`, { method: 'DELETE' });

@@ -1,5 +1,6 @@
 # Background scheduler for the Vercel-hosted API (functions cannot run timers).
-# Calls the protected tick endpoint, which runs due SLA/task jobs and drains allocation queues.
+# Calls the protected tick endpoint, which runs due SLA/task jobs and drains allocation queues, then checks
+# /internal/status: the run FAILS (GitHub e-mails an alert) when jobs are overdue, stuck or dead-lettered (docs/RUNBOOK.md).
 # Needs the repository secret CRON_SECRET (same value as the API project's CRON_SECRET on Vercel).
 # GitHub may delay scheduled runs; for minute-accurate reminders use Vercel Pro cron or an always-on worker (O-12).
 name: Scheduler tick
@@ -31,3 +32,17 @@ jobs:
           fi
           curl -fsS --max-time 60 --retry 2 -X POST -H "Authorization: Bearer $CRON_SECRET" "$TICK_URL"
           echo
+      - name: Check operational status
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          STATUS_URL: ${{ vars.API_STATUS_URL || 'https://academic-sales-crm-api.vercel.app/api/v1/internal/status' }}
+          HEALTH_URL: ${{ vars.API_HEALTH_URL || 'https://academic-sales-crm-api.vercel.app/api/v1/health' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then exit 0; fi
+          curl -fsS --max-time 30 --retry 2 "$HEALTH_URL"; echo
+          code=$(curl -sS --max-time 30 -o status.json -w '%{http_code}' -H "Authorization: Bearer $CRON_SECRET" "$STATUS_URL")
+          cat status.json; echo
+          if [ "$code" != "200" ]; then
+            echo "::error::Operational status is $code — see docs/RUNBOOK.md"
+            exit 1
+          fi

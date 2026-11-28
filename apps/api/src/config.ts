@@ -19,6 +19,12 @@ const EnvSchema = z
     JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
     ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
+    /** Requests per minute per signed-in session (anonymous: per IP + e-mail, or IP). */
+    THROTTLE_PER_MINUTE: z.coerce.number().int().min(30).max(1_000_000).default(300),
+    /** Requests per minute per client IP — a flood ceiling, high enough for an office behind one NAT. */
+    THROTTLE_IP_PER_MINUTE: z.coerce.number().int().min(100).max(10_000_000).default(3000),
+    /** Lead intake requests per minute per intake key. */
+    INTAKE_PER_MINUTE: z.coerce.number().int().min(10).max(1_000_000).default(120),
     LOGIN_MAX_FAILURES: z.coerce.number().int().min(3).max(20).default(5),
     LOGIN_LOCK_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
     SMTP_URL: z

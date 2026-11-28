@@ -41,6 +41,18 @@ export interface ReportContext {
   now: Date;
   scope: Scope;
   f: ReportFilter;
+  /** Per-request cache of lead dimensions (filled by collect). */
+  dims?: Map<string, LeadDim>;
+}
+
+interface LeadDim {
+  brandId: string;
+  courseId: string | null;
+  sourceId: string | null;
+  campaignId: string | null;
+  ownerId: string | null;
+  status: string;
+  createdAt: Date;
 }
 
 const ACTIVE_LEAD = ['OPEN', 'ON_HOLD', 'IN_RECOVERY'];
@@ -135,44 +147,30 @@ export class ReportsService {
 
   // ----------------------------------------------------------- dimensions
   /** Lead attributes + first-touch source/campaign (the original enquiry, D-004). */
-  private async leadDims(tx: Tx, leadIds: string[]) {
-    const ids = [...new Set(leadIds)];
-    if (!ids.length)
-      return new Map<
-        string,
-        {
-          brandId: string;
-          courseId: string | null;
-          sourceId: string | null;
-          campaignId: string | null;
-          ownerId: string | null;
-          status: string;
-          createdAt: Date;
-        }
-      >();
-    const [leads, first] = await Promise.all([
-      tx.lead.findMany({
-        where: { id: { in: ids } },
-        select: {
-          id: true,
-          brandId: true,
-          courseId: true,
-          ownerId: true,
-          status: true,
-          createdAt: true,
-        },
-      }),
-      tx.$queryRaw<
-        Array<{ lead_id: string; source_id: string | null; campaign_id: string | null }>
-      >`
-        SELECT DISTINCT ON (lead_id) lead_id, source_id, campaign_id FROM enquiries
-        WHERE lead_id = ANY(${ids}::uuid[]) ORDER BY lead_id, received_at ASC`,
-    ]);
-    const f = new Map(first.map((r) => [r.lead_id, r]));
-    return new Map(
-      leads.map((l) => [
-        l.id,
-        {
+  private async leadDims(tx: Tx, leadIds: string[], cache = new Map<string, LeadDim>()) {
+    const ids = [...new Set(leadIds)].filter((id) => !cache.has(id));
+    if (ids.length) {
+      const [leads, first] = await Promise.all([
+        tx.lead.findMany({
+          where: { id: { in: ids } },
+          select: {
+            id: true,
+            brandId: true,
+            courseId: true,
+            ownerId: true,
+            status: true,
+            createdAt: true,
+          },
+        }),
+        tx.$queryRaw<
+          Array<{ lead_id: string; source_id: string | null; campaign_id: string | null }>
+        >`
+          SELECT DISTINCT ON (lead_id) lead_id, source_id, campaign_id FROM enquiries
+          WHERE lead_id = ANY(${ids}::uuid[]) ORDER BY lead_id, received_at ASC`,
+      ]);
+      const f = new Map(first.map((r) => [r.lead_id, r]));
+      for (const l of leads)
+        cache.set(l.id, {
           brandId: l.brandId,
           courseId: l.courseId,
           ownerId: l.ownerId,
@@ -180,9 +178,9 @@ export class ReportsService {
           createdAt: l.createdAt,
           sourceId: f.get(l.id)?.source_id ?? null,
           campaignId: f.get(l.id)?.campaign_id ?? null,
-        },
-      ]),
-    );
+        });
+    }
+    return cache;
   }
 
   /** Owner of each lead at a moment in time, from the append-only assignment history. */
@@ -195,9 +193,11 @@ export class ReportsService {
           select: { leadId: true, toUserId: true, assignedAt: true },
         })
       : [];
+    const byLead = new Map<string, typeof rows>();
+    for (const r of rows) byLead.set(r.leadId, [...(byLead.get(r.leadId) ?? []), r]);
     return (leadId: string, at: Date) => {
       let owner: string | null = null;
-      for (const r of rows) if (r.leadId === leadId && r.assignedAt <= at) owner = r.toUserId;
+      for (const r of byLead.get(leadId) ?? []) if (r.assignedAt <= at) owner = r.toUserId;
       return owner;
     };
   }
@@ -232,6 +232,7 @@ export class ReportsService {
     const dims = await this.leadDims(
       tx,
       rows.map((r) => r.leadId),
+      ctx.dims,
     );
     const out: Rec[] = [];
     for (const row of rows) {
@@ -253,11 +254,16 @@ export class ReportsService {
 
   // -------------------------------------------------------------- records
   /** Every KPI's underlying records for the period (definitions in docs/KPI.md). */
-  async collect(tx: Tx, ctx: ReportContext) {
+  async collect(tx: Tx, base: ReportContext) {
+    const ctx: ReportContext = { ...base, dims: new Map() };
     const inPeriod = { gte: ctx.start, lt: ctx.end };
+    // Scope pushed into the queries (the same rules are re-checked per record by keep()).
+    const b = ctx.scope.all ? {} : { brandId: { in: ctx.scope.brandIds } };
+    const users = ctx.scope.userIds ? [...ctx.scope.userIds] : null;
+    const u = (col: string) => (users ? { [col]: { in: users } } : {});
 
     const leads = await tx.lead.findMany({
-      where: { createdAt: inPeriod, status: { not: 'MERGED' } },
+      where: { ...b, ...u('ownerId'), createdAt: inPeriod, status: { not: 'MERGED' } },
       select: { id: true, createdAt: true, ownerId: true },
     });
     const leadsCreated = await this.build(
@@ -268,7 +274,7 @@ export class ReportsService {
     );
 
     const assignments = await tx.leadAssignment.findMany({
-      where: { assignedAt: inPeriod },
+      where: { ...b, assignedAt: inPeriod },
       orderBy: [{ assignedAt: 'asc' }, { attemptNo: 'asc' }],
     });
     const assignedAll = await this.build(tx, ctx, assignments, (a) => ({
@@ -292,7 +298,7 @@ export class ReportsService {
     );
 
     const calls = await tx.activity.findMany({
-      where: { type: 'CALL', outcome: 'CONNECTED', occurredAt: inPeriod },
+      where: { ...b, type: 'CALL', outcome: 'CONNECTED', occurredAt: inPeriod },
       orderBy: { occurredAt: 'asc' },
     });
     const contactedAll = await this.build(tx, ctx, calls, (c) => ({
@@ -321,7 +327,7 @@ export class ReportsService {
     );
 
     const sla = await tx.slaInstance.findMany({
-      where: { startedAt: inPeriod, state: { not: 'CANCELLED' } },
+      where: { ...b, ...u('ownerId'), startedAt: inPeriod, state: { not: 'CANCELLED' } },
     });
     const slaStarted = await this.build(tx, ctx, sla, (s) => ({
       id: s.id,
@@ -336,7 +342,7 @@ export class ReportsService {
       },
     }));
 
-    const tasks = await tx.task.findMany({ where: { status: 'OPEN' } });
+    const tasks = await tx.task.findMany({ where: { ...b, ...u('ownerId'), status: 'OPEN' } });
     const openTasks = await this.build(tx, ctx, tasks, (t) => ({
       id: t.id,
       at: t.dueAt,
@@ -345,7 +351,7 @@ export class ReportsService {
     }));
 
     const openLeadRows = await tx.lead.findMany({
-      where: { status: { in: ACTIVE_LEAD as never } },
+      where: { ...b, ...u('ownerId'), status: { in: ACTIVE_LEAD as never } },
       select: { id: true, ownerId: true, createdAt: true },
     });
     const openLeads = await this.build(
@@ -361,7 +367,7 @@ export class ReportsService {
     );
 
     const statusRows = await tx.leadStatusHistory.findMany({
-      where: { occurredAt: inPeriod },
+      where: { ...b, occurredAt: inPeriod },
       orderBy: { occurredAt: 'asc' },
     });
     const owner = await this.ownerAt(tx, [
@@ -388,7 +394,7 @@ export class ReportsService {
     }));
 
     const sessions = await tx.appointment.findMany({
-      where: { status: 'COMPLETED', startsAt: inPeriod },
+      where: { ...b, ...u('counsellorId'), status: 'COMPLETED', startsAt: inPeriod },
     });
     const counselling = await this.build(tx, ctx, sessions, (a) => ({
       id: a.id,
@@ -397,7 +403,7 @@ export class ReportsService {
     }));
 
     const quotes = await tx.quotation.findMany({
-      where: { status: 'ACCEPTED', decidedAt: inPeriod },
+      where: { ...b, status: 'ACCEPTED', decidedAt: inPeriod },
     });
     const qOwner = await this.ownerAt(
       tx,
@@ -472,7 +478,7 @@ export class ReportsService {
     );
 
     // Money: payments on receipt date, refunds on payout date (A-007c); closing executive attribution.
-    const pays = await tx.payment.findMany({ where: { receivedAt: inPeriod } });
+    const pays = await tx.payment.findMany({ where: { ...b, receivedAt: inPeriod } });
     const refundEvents = await tx.refundEvent.findMany({
       where: { type: 'PAID', occurredAt: inPeriod },
     });
@@ -533,7 +539,7 @@ export class ReportsService {
     );
 
     const stageRows = await tx.leadStageHistory.findMany({
-      where: { occurredAt: inPeriod, direction: 'FORWARD' },
+      where: { ...b, occurredAt: inPeriod, direction: 'FORWARD' },
     });
     const sOwner = await this.ownerAt(
       tx,
@@ -684,7 +690,12 @@ export class ReportsService {
 
   /** Snapshot: confirmed admissions' net fee − net collections, per currency (A-043). */
   private async outstanding(tx: Tx, ctx: ReportContext) {
-    const adm = await tx.admission.findMany({ where: { status: 'CONFIRMED' } });
+    const adm = await tx.admission.findMany({
+      where: {
+        status: 'CONFIRMED',
+        ...(ctx.scope.all ? {} : { brandId: { in: ctx.scope.brandIds } }),
+      },
+    });
     const kept = await this.build(tx, ctx, adm, (a) => ({
       id: a.id,
       at: a.confirmedAt,
@@ -694,27 +705,46 @@ export class ReportsService {
     // Outstanding is not attributed to a person, so the user scope does not narrow it (team/own views show none).
     const ids = ctx.scope.userIds ? [] : kept.map((k) => k.id);
     if (!ids.length) return [];
+    // A fixed number of grouped queries, however many admissions are in scope.
     const plans = await tx.feePlan.findMany({ where: { admissionId: { in: ids } } });
-    const out: Record<string, bigint> = {};
-    for (const plan of plans) {
-      const [adj, paid, refunds] = await Promise.all([
-        tx.feeAdjustment.aggregate({ where: { planId: plan.id }, _sum: { amountMinor: true } }),
-        tx.payment.aggregate({ where: { planId: plan.id }, _sum: { amountMinor: true } }),
-        tx.refund.findMany({ where: { admissionId: plan.admissionId } }),
-      ]);
-      const paidOut = refunds.length
+    const planIds = plans.map((x) => x.id);
+    const [adj, paid, refunds] = await Promise.all([
+      tx.feeAdjustment.groupBy({
+        by: ['planId'],
+        where: { planId: { in: planIds } },
+        _sum: { amountMinor: true },
+      }),
+      tx.payment.groupBy({
+        by: ['planId'],
+        where: { planId: { in: planIds } },
+        _sum: { amountMinor: true },
+      }),
+      tx.refund.findMany({
+        where: { admissionId: { in: ids } },
+        select: { id: true, admissionId: true, amountMinor: true },
+      }),
+    ]);
+    const paidOut = new Set(
+      (refunds.length
         ? await tx.refundEvent.findMany({
             where: { refundId: { in: refunds.map((r) => r.id) }, type: 'PAID' },
             select: { refundId: true },
           })
-        : [];
-      const refunded = refunds
-        .filter((r) => paidOut.some((e) => e.refundId === r.id))
-        .reduce((s, r) => s + r.amountMinor, 0n);
+        : []
+      ).map((e) => e.refundId),
+    );
+    const adjBy = new Map(adj.map((a) => [a.planId, a._sum.amountMinor ?? 0n]));
+    const paidBy = new Map(paid.map((a) => [a.planId, a._sum.amountMinor ?? 0n]));
+    const refundedBy = new Map<string, bigint>();
+    for (const r of refunds)
+      if (paidOut.has(r.id))
+        refundedBy.set(r.admissionId, (refundedBy.get(r.admissionId) ?? 0n) + r.amountMinor);
+    const out: Record<string, bigint> = {};
+    for (const plan of plans) {
       const due =
         plan.baseAmountMinor +
-        (adj._sum.amountMinor ?? 0n) -
-        ((paid._sum.amountMinor ?? 0n) - refunded);
+        (adjBy.get(plan.id) ?? 0n) -
+        ((paidBy.get(plan.id) ?? 0n) - (refundedBy.get(plan.admissionId) ?? 0n));
       out[plan.currency] = (out[plan.currency] ?? 0n) + due;
     }
     return Object.entries(out).map(([currency, outstandingMinor]) => ({

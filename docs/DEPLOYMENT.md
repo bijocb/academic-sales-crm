@@ -1,5 +1,8 @@
 # Deployment
 
+Go-live checklist, production settings and rollback: `docs/RELEASE.md`. Operations: `docs/RUNBOOK.md`.
+Backups: `docs/BACKUP-RESTORE.md`.
+
 ## Current demo hosting (Vercel + Neon)
 
 | Part             | Where                                                                               | Notes                                                                                                                                   |
@@ -30,7 +33,7 @@ role, creates the platform admin (`SEED_PLATFORM_ADMIN_*`) and — because `ALLO
   adapters never run there. Calls are logged manually; email goes through the configured mailer.
 - No payment gateway runs in production yet (O-09): Accounts users record verified payments manually; the sandbox
   gateway and its checkout pages exist only in development and tests.
-- Login rate limiting is per function instance (in memory) until Redis is added.
+- Rate limits are counted per function instance (in memory) until Redis is added (SECURITY-REVIEW S3).
 
 ## Container alternative
 

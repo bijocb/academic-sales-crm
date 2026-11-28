@@ -367,7 +367,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
                     <span className="text-slate-600">{fmt(item.at)}</span>
                     {item.actor && <span className="text-slate-500">· {item.actor}</span>}
                     {item.leadId !== l.id && (
-                      <span className="text-xs text-slate-400">(from merged lead)</span>
+                      <span className="text-xs text-slate-500">(from merged lead)</span>
                     )}
                   </div>
                   {item.type === 'ENQUIRY' && (

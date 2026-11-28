@@ -22,7 +22,7 @@ function Tile({
           type="button"
           onClick={onDrill}
           className="mt-1 text-2xl font-semibold tabular-nums text-brand-700 hover:underline"
-          aria-label={`${label}: show records`}
+          aria-label={`${label} ${String(value)}: show records`}
         >
           {value}
         </button>

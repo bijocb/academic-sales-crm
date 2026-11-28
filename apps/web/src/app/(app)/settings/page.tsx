@@ -88,7 +88,7 @@ function WorkingHours({ brand, canEdit }: { brand: Brand; canEdit: boolean }) {
           return (
             <div key={weekday} className="flex flex-wrap items-center gap-2 text-sm">
               <span className="w-12 font-medium text-slate-700">{label}</span>
-              {day.length === 0 && <span className="text-slate-400">Closed</span>}
+              {day.length === 0 && <span className="text-slate-500">Closed</span>}
               {day.map(({ s, i }) => (
                 <span
                   key={i}
@@ -115,7 +115,7 @@ function WorkingHours({ brand, canEdit }: { brand: Brand; canEdit: boolean }) {
                     <button
                       type="button"
                       aria-label={`Remove ${label} shift`}
-                      className="ml-1 text-slate-400 hover:text-red-600"
+                      className="ml-1 text-slate-500 hover:text-red-600"
                       onClick={() => setShifts(shifts.filter((_, j) => j !== i))}
                     >
                       ×
@@ -401,6 +401,7 @@ function Sla({ brand, canEdit }: { brand: Brand; canEdit: boolean }) {
             </Td>
             <Td>
               <Select
+                aria-label={`Reminder ${i + 1} measured in`}
                 disabled={!canEdit}
                 value={c.basis}
                 onChange={(e) => setCp(i, { basis: e.target.value as 'WORKING' })}
@@ -412,6 +413,7 @@ function Sla({ brand, canEdit }: { brand: Brand; canEdit: boolean }) {
             </Td>
             <Td>
               <Select
+                aria-label={`Reminder ${i + 1} action`}
                 disabled={!canEdit}
                 value={c.action}
                 onChange={(e) => setCp(i, { action: e.target.value })}

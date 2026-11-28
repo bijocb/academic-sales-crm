@@ -95,6 +95,7 @@ export default function LeadsPage() {
               className="w-64"
             />
             <Select
+              aria-label="Brand"
               value={brandId}
               onChange={(e) => {
                 setBrandId(e.target.value);
@@ -110,6 +111,7 @@ export default function LeadsPage() {
               ))}
             </Select>
             <Select
+              aria-label="Status"
               value={status}
               onChange={(e) => {
                 setStatus(e.target.value);

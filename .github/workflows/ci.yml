@@ -47,6 +47,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Create test database
         run: PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE crm_test"
+      - name: Dependency audit (reported, not blocking)
+        continue-on-error: true
+        run: pnpm audit --prod --audit-level=high
       - name: Migrate
         run: pnpm db:migrate
       - name: Format

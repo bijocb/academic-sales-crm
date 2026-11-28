@@ -7,6 +7,7 @@ import { Public } from '../auth/decorators';
 import { ApiZodBody, ZBody } from '../common/zod';
 import { IntakeKeyResolver } from './intake-keys';
 import { IngestResult, IntakeService } from './intake.service';
+import { intakeLimit } from '../common/throttle';
 
 function bearer(req: Request): string | undefined {
   const h = req.headers.authorization;
@@ -23,7 +24,7 @@ function publicResult(r: IngestResult) {
   };
 }
 
-const INTAKE_THROTTLE = { default: { limit: 120, ttl: 60_000 } };
+const INTAKE_THROTTLE = { default: { limit: () => intakeLimit.perMinute, ttl: 60_000 } };
 
 @ApiTags('intake')
 @Controller()

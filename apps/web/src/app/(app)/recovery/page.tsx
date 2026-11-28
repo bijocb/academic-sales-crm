@@ -253,7 +253,7 @@ function ReasonsCard({ brandId }: { brandId: string }) {
     <Card title="Loss reasons">
       <Table head={['Reason', 'Code', 'Recoverable', 'Active']} empty={reasons.data?.length === 0}>
         {reasons.data?.map((r) => (
-          <tr key={r.id} className={r.active ? '' : 'text-slate-400'}>
+          <tr key={r.id} className={r.active ? '' : 'text-slate-500'}>
             <Td>{r.label}</Td>
             <Td className="font-mono text-xs">{r.code}</Td>
             <Td>

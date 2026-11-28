@@ -74,7 +74,12 @@ export default function UsersPage() {
               onChange={(e) => setQ(e.target.value)}
               className="w-56"
             />
-            <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-40">
+            <Select
+              aria-label="Status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-40"
+            >
               <option value="">All statuses</option>
               {['ACTIVE', 'INVITED', 'SUSPENDED', 'DEACTIVATED'].map((s) => (
                 <option key={s}>{s}</option>
@@ -229,7 +234,7 @@ function UserDetail({
         empty={assignments.data?.length === 0}
       >
         {assignments.data?.map((a) => (
-          <tr key={a.id} className={a.revokedAt ? 'text-slate-400' : ''}>
+          <tr key={a.id} className={a.revokedAt ? 'text-slate-500' : ''}>
             <Td>{a.role.name}</Td>
             <Td>{scopeLabel(a)}</Td>
             <Td>{new Date(a.grantedAt).toLocaleDateString()}</Td>

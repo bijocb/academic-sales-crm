@@ -41,16 +41,27 @@ async function main(): Promise<void> {
             where: { roleId: role.id, permission: { in: remove } },
           });
       }
-      // Phase 5: name keys for duplicate suggestions.
-      const unkeyed = await tx.person.findMany({
-        where: { nameKey: null },
-        select: { id: true, fullName: true },
-      });
-      for (const p of unkeyed)
-        await tx.person.update({ where: { id: p.id }, data: { nameKey: nameKey(p.fullName) } });
       return changed;
     });
     console.log(`Brand defaults backfilled for ${n} brand(s)`);
+    // Phase 5: name keys for duplicate suggestions — in batches, so a large import never times out a deploy.
+    let keyed = 0;
+    for (;;) {
+      const done = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+        const batch = await tx.person.findMany({
+          where: { nameKey: null },
+          select: { id: true, fullName: true },
+          take: 500,
+        });
+        for (const p of batch)
+          await tx.person.update({ where: { id: p.id }, data: { nameKey: nameKey(p.fullName) } });
+        return batch.length;
+      });
+      keyed += done;
+      if (done < 500) break;
+    }
+    if (keyed) console.log(`Name keys backfilled for ${keyed} person(s)`);
   } finally {
     await prisma.$disconnect();
   }

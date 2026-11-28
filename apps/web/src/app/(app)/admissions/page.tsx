@@ -221,7 +221,7 @@ function DocumentTypesCard({ brandId }: { brandId: string }) {
         empty={types.data?.length === 0}
       >
         {types.data?.map((t) => (
-          <tr key={t.id} className={t.active ? '' : 'text-slate-400'}>
+          <tr key={t.id} className={t.active ? '' : 'text-slate-500'}>
             <Td>
               {t.label}
               {t.description && (
