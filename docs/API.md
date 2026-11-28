@@ -240,3 +240,9 @@ Advisory and in-house (A-045, `docs/AI-REVIEW.md`). Off by default per brand.
 Rate limits (429): 300 requests/min per signed-in session (`THROTTLE_PER_MINUTE`), 3,000/min per IP
 (`THROTTLE_IP_PER_MINUTE`), sign-in and password routes 10/min per IP + e-mail and 100/min per IP, intake 120/min per
 key (`INTAKE_PER_MINUTE`).
+
+## Dashboard performance report (D-008)
+
+| Method & path             | Permission                                               | Notes                                                                                                                                                                                                                     |
+| ------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /reports/me?from&to` | any user who works leads (`lead.read` / `lead.read_own`) | own `current` and `previous` metrics (previous = same number of days before `from`), `trend` per local day, `funnel`, `teamAverage` (aggregates only; `{ members, hidden: true }` under 3 members; `null` without a team) |

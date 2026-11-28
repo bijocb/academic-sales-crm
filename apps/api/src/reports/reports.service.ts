@@ -56,6 +56,8 @@ interface LeadDim {
 }
 
 const ACTIVE_LEAD = ['OPEN', 'ON_HOLD', 'IN_RECOVERY'];
+/** Below this size a team average would reveal individual colleagues' numbers (D-008, ASSUMED). */
+const MIN_TEAM_FOR_AVERAGE = 3;
 
 /**
  * KPI engine (FR-017). Computes from the history tables; every KPI and its date basis is
@@ -672,6 +674,136 @@ export class ReportsService {
         'source and campaign: first touch (original enquiry); executive: owner at the event (closing) and first connected caller (first contact, D-005)',
       merged: 'merged leads excluded; each lead counted once per metric',
       currencies: 'never added together (A-012)',
+    };
+  }
+
+  // ------------------------------------------------- personal performance
+  /**
+   * The signed-in user's own performance report (dashboard, D-008): current vs previous period of the same length,
+   * daily trend, personal funnel, and the anonymous average of their team(s). Same KPI engine as the reports.
+   */
+  me(p: OrgPrincipal, f: ReportFilter) {
+    return this.db.tenant(p.organizationId, async (tx) => {
+      const ctx = await this.context(tx, p, { ...f, mine: 'true' });
+      const from = DateTime.fromISO(f.from, { zone: ctx.tz });
+      const days = Math.round(DateTime.fromISO(f.to, { zone: ctx.tz }).diff(from, 'days').days) + 1;
+      const prevF = {
+        ...f,
+        from: from.minus({ days }).toISODate()!,
+        to: from.minus({ days: 1 }).toISODate()!,
+      };
+      const prevCtx = await this.context(tx, p, { ...prevF, mine: 'true' });
+      const [d, prev] = [await this.collect(tx, ctx), await this.collect(tx, prevCtx)];
+      const current = this.metrics(d);
+
+      // Daily trend in the report time zone.
+      const keys = Array.from({ length: days }, (_, i) => from.plus({ days: i }).toISODate()!);
+      const day = (at: Date | null) =>
+        at ? DateTime.fromJSDate(at, { zone: ctx.tz }).toISODate() : null;
+      const perDay = (rs: Rec[], distinct: boolean) => {
+        const m = new Map<string, Set<string> | number>();
+        for (const r of rs) {
+          const k = day(r.at);
+          if (!k) continue;
+          if (distinct) {
+            const set = (m.get(k) as Set<string> | undefined) ?? new Set<string>();
+            set.add(r.leadId);
+            m.set(k, set);
+          } else m.set(k, ((m.get(k) as number | undefined) ?? 0) + 1);
+        }
+        return (k: string) => {
+          const v = m.get(k);
+          return v === undefined ? 0 : typeof v === 'number' ? v : v.size;
+        };
+      };
+      const [asg, con, adm] = [
+        perDay(d.assigned, true),
+        perDay(d.contacted, true),
+        perDay(d.admissionsConfirmed, false),
+      ];
+      const trend = keys.map((k) => ({
+        date: k,
+        assigned: asg(k),
+        contacted: con(k),
+        admissions: adm(k),
+      }));
+      const counselled = new Set(
+        d.stageEntries
+          .filter((e) => e.flags!.stage === 'COUNSELLING_COMPLETED')
+          .map((e) => e.leadId),
+      ).size;
+      const funnel = [
+        { step: 'ASSIGNED', leads: current.assigned },
+        { step: 'CONTACTED', leads: current.contacted },
+        { step: 'COUNSELLING_COMPLETED', leads: counselled },
+        { step: 'QUOTATION_ACCEPTED', leads: current.quotationsAccepted },
+        { step: 'ADMISSION_CONFIRMED', leads: current.admissions.confirmed },
+      ];
+      return {
+        ...this.disclosure(ctx),
+        previousPeriod: { from: prevF.from, to: prevF.to },
+        current,
+        previous: this.metrics(prev),
+        trend,
+        funnel,
+        teamAverage: await this.teamAverage(tx, p, ctx),
+      };
+    });
+  }
+
+  /** Anonymous team average: totals of the user's team(s) ÷ current members; hidden for teams under 3 people. */
+  private async teamAverage(tx: Tx, p: OrgPrincipal, ctx: ReportContext) {
+    const mine = await tx.teamMember.findMany({
+      where: { userId: p.userId, leftAt: null },
+      select: { teamId: true },
+    });
+    if (!mine.length) return null;
+    const teams = await tx.team.findMany({
+      where: { id: { in: mine.map((m) => m.teamId) } },
+      select: { brandId: true },
+    });
+    const members = new Set(
+      (
+        await tx.teamMember.findMany({
+          where: { teamId: { in: mine.map((m) => m.teamId) }, leftAt: null },
+          select: { userId: true },
+        })
+      ).map((m) => m.userId),
+    );
+    if (members.size < MIN_TEAM_FOR_AVERAGE)
+      return { members: members.size, hidden: true as const };
+    const t = this.metrics(
+      await this.collect(tx, {
+        ...ctx,
+        scope: {
+          all: false,
+          brandIds: [...new Set(teams.map((x) => x.brandId))],
+          userIds: members,
+        },
+      }),
+    );
+    const n = members.size;
+    const avg = (v: number) => Math.round((10 * v) / n) / 10;
+    return {
+      members: n,
+      hidden: false as const,
+      assigned: avg(t.assigned),
+      contacted: avg(t.contacted),
+      counselling: avg(t.counselling),
+      quotationsAccepted: avg(t.quotationsAccepted),
+      admissionsConfirmed: avg(t.admissions.confirmed),
+      admissionsNet: avg(t.admissions.net),
+      lost: avg(t.lost),
+      overdueTasks: avg(t.overdueTasks),
+      openLeads: avg(t.openLeads),
+      // Rates are the team's own rate, not an average of averages.
+      contactRatePct: t.contactRate.pct,
+      firstResponsePct: t.firstResponse.pct,
+      avgWorkingMinutes: t.firstResponse.avgWorkingMinutes,
+      revenue: t.revenue.map((r) => ({
+        currency: r.currency,
+        netMinor: r.netMinor / BigInt(n),
+      })),
     };
   }
 

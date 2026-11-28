@@ -108,7 +108,7 @@ export default function PipelinePage() {
                 </li>
               ))}
               {c.count > c.leads.length && (
-                <li className="px-1 text-xs text-slate-500">
+                <li className="px-1 text-xs text-slate-700">
                   +{c.count - c.leads.length} more — use the leads list
                 </li>
               )}

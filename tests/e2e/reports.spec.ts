@@ -59,3 +59,19 @@ test('targets and incentives: add a brand target; preview a run that its creator
   await expect(page.getByText('Needs approval by someone other than its creator')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Approve and lock' })).toHaveCount(0);
 });
+
+test('dashboard: my performance with period comparison, daily trend, funnel and the team table', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const mine = page.getByRole('region', { name: 'My performance' });
+  await expect(mine.getByText('Leads assigned', { exact: true }).first()).toBeVisible();
+  await expect(mine.getByText(/vs previous period|same as previous period/).first()).toBeVisible();
+  await expect(mine.getByRole('img', { name: /Leads assigned per day/ })).toBeVisible();
+  await expect(mine.getByRole('list', { name: 'My funnel' })).toContainText('Admission confirmed');
+  await expect(page.getByRole('heading', { name: "My team's performance" })).toBeVisible();
+  await page.getByLabel('Period').selectOption('lastMonth');
+  await expect(mine.getByText(/compared with/)).toBeVisible();
+  await mine.getByText('Show as a table').click();
+  await expect(mine.getByRole('columnheader', { name: 'Admissions confirmed' })).toBeVisible();
+});

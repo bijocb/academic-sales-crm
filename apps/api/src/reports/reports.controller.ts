@@ -55,6 +55,15 @@ export class ReportsController {
     return this.reports.summary(requireOrg(p), q);
   }
 
+  /** The signed-in user's own performance report for the dashboard (D-008). */
+  @Get('reports/me')
+  me(
+    @CurrentPrincipal() p: Principal,
+    @ZQuery(ReportFilterSchema) q: z.infer<typeof ReportFilterSchema>,
+  ) {
+    return this.reports.me(requireOrg(p), q);
+  }
+
   @Get('reports/breakdown')
   breakdown(
     @CurrentPrincipal() p: Principal,

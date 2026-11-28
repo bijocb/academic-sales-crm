@@ -57,3 +57,11 @@ entering recovery).
   (net admissions), COLLECTIONS (payments received in the target currency) and REVENUE (collections − refunds paid).
 - **Incentive runs** use the confirmed admissions (per-admission rules) or payments and refunds paid (percent rules) of the
   brand and period; see A-044 for the split, threshold, cap and clawback rules.
+
+## Personal dashboard (D-008)
+
+The home dashboard uses the same records with the user's own scope (`GET /reports/me`). "Previous period" is the same
+number of days immediately before the chosen start date. The daily trend counts distinct leads assigned and contacted
+per local day, and admissions confirmed per day; across a period, the days add up to the period total unless the same
+lead is assigned or contacted on several days. The team average is the team's total for each count divided by its
+current members; rates (contact rate, first response on time, average response time) are the team's own rate.

@@ -452,6 +452,44 @@ describe('Reports, targets and incentives', () => {
     expect((await summary('bm1', '&mine=true')).metrics.leadsCreated).toBe(0);
   });
 
+  it('personal performance report: own numbers vs previous period, daily trend, funnel, anonymous team average', async () => {
+    const r = await get('e1', `/reports/me?${WEEK}`);
+    expect(r.status).toBe(200);
+    const b = r.body;
+    expect(b.previousPeriod).toEqual({ from: '2026-11-23', to: '2026-11-29' });
+    // e1 owns L1 and L3 and received L2 on reassignment; connected L1; closed L1 and L2.
+    expect(b.current).toMatchObject({
+      assigned: 3,
+      contacted: 1,
+      admissions: { confirmed: 2, cancelled: 0 },
+    });
+    expect(b.previous).toMatchObject({ assigned: 0, contacted: 0, admissions: { confirmed: 0 } });
+    expect(b.trend).toHaveLength(7);
+    const sum = (k: string) =>
+      b.trend.reduce((x: number, d: Record<string, number>) => x + d[k], 0);
+    expect(sum('assigned')).toBe(3);
+    expect(sum('contacted')).toBe(1);
+    expect(sum('admissions')).toBe(2);
+    expect(b.funnel.map((f: { leads: number }) => f.leads)).toEqual([3, 1, 0, 2, 2]);
+    // Team B1 = tl1, e1, e2: totals 3 assigned, 2 contacted, 2 admissions, INR 70,000.00 net → ÷ 3.
+    expect(b.teamAverage).toMatchObject({
+      members: 3,
+      hidden: false,
+      assigned: 1,
+      contacted: 0.7,
+      admissionsConfirmed: 0.7,
+      revenue: [{ currency: 'INR', netMinor: 2_333_333 }],
+    });
+    // Aggregates only: no colleague is identified.
+    const text = JSON.stringify(b);
+    for (const other of ['e2', 'tl1', 'e3']) expect(text).not.toContain(id[other]);
+    // A one-person team gets no average (it would expose the person's own numbers as "the team").
+    expect((await get('e3', `/reports/me?${WEEK}`)).body.teamAverage).toEqual({
+      members: 1,
+      hidden: true,
+    });
+  });
+
   it('targets: progress uses the same KPIs; only target managers create or change them; audited', async () => {
     const body = {
       scope: 'USER',
