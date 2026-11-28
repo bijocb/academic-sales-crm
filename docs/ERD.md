@@ -203,3 +203,10 @@ erDiagram
 | `lead_scores`                                            | **Append-only** score history (a row only on change): method, model version, score, band, probability, confidence, factors |
 | `lead_score_overrides`                                   | **Append-only** human overrides with reason                                                                                |
 | `ai_suggestion_events`                                   | **Append-only** accepted / dismissed next-best actions                                                                     |
+
+## Lead source additions (A-047, A-048)
+
+| Table / value               | Notes                                                                                                                                                |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `meta_connections`          | Facebook page per brand: source, page id (unique), page name, `token_sealed` (AES-256-GCM), status ACTIVE/PAUSED, subscribed, last lead / error; RLS |
+| `LeadChannel.GOOGLE_SHEETS` | New channel; every brand gets a "Google Sheets" source                                                                                               |

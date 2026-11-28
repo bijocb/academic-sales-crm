@@ -81,6 +81,7 @@ enum TimeBasis {
 enum LeadChannel {
   META_ADS
   GOOGLE_ADS
+  GOOGLE_SHEETS
   WEBSITE
   WHATSAPP
   CALL
@@ -2173,4 +2174,29 @@ model AiSuggestionEvent {
 
   @@index([organizationId, leadId, createdAt])
   @@map("ai_suggestion_events")
+}
+
+// ------------------------------------------------------------------ Meta Lead Ads (A-047)
+
+/// A Facebook page connected for Lead Ads. The page access token is stored encrypted (AES-256-GCM, SECRETS_KEY).
+model MetaConnection {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  brandId        String    @map("brand_id") @db.Uuid
+  sourceId       String    @map("source_id") @db.Uuid
+  pageId         String    @unique @map("page_id")
+  pageName       String    @map("page_name")
+  tokenSealed    String    @map("token_sealed")
+  status         String    @default("ACTIVE")
+  subscribed     Boolean   @default(false)
+  lastLeadAt     DateTime? @map("last_lead_at") @db.Timestamptz(3)
+  lastError      String?   @map("last_error")
+  lastErrorAt    DateTime? @map("last_error_at") @db.Timestamptz(3)
+  createdById    String?   @map("created_by_id") @db.Uuid
+  createdAt      DateTime  @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, brandId])
+  @@map("meta_connections")
 }

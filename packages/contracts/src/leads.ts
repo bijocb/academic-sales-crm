@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const LEAD_CHANNELS = [
   'META_ADS',
   'GOOGLE_ADS',
+  'GOOGLE_SHEETS',
   'WEBSITE',
   'WHATSAPP',
   'CALL',

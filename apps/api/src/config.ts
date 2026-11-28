@@ -54,6 +54,24 @@ const EnvSchema = z
     WORKER_INTERVAL_MS: z.coerce.number().int().min(1000).max(600_000).default(15_000),
     /** DEVELOPMENT/TEST sandbox gateway webhook secret (the sandbox never runs in production). */
     SANDBOX_GATEWAY_SECRET: z.string().min(16).default('sandbox-gateway-secret-dev-only'),
+    /** Meta Lead Ads (A-047). Without META_APP_SECRET the Meta webhook is switched off. */
+    META_APP_SECRET: z
+      .string()
+      .optional()
+      .transform((v) => (v ? v : undefined)),
+    META_VERIFY_TOKEN: z
+      .string()
+      .optional()
+      .transform((v) => (v ? v : undefined)),
+    META_GRAPH_VERSION: z
+      .string()
+      .regex(/^v\d+\.\d+$/)
+      .default('v23.0'),
+    /** 32-byte key (base64 or hex) that encrypts stored third-party tokens (AES-256-GCM). */
+    SECRETS_KEY: z
+      .string()
+      .optional()
+      .transform((v) => (v ? v : undefined)),
     ENABLE_API_DOCS: z
       .enum(['true', 'false'])
       .optional()

@@ -1,6 +1,7 @@
 export const CHANNEL_LABEL: Record<string, string> = {
   META_ADS: 'Meta Ads',
   GOOGLE_ADS: 'Google Ads',
+  GOOGLE_SHEETS: 'Google Sheets',
   WEBSITE: 'Website',
   WHATSAPP: 'WhatsApp',
   CALL: 'Call / walk-in',

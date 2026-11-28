@@ -69,6 +69,19 @@ export async function ensureBrandDefaults(
     });
     created.push('lead_sources');
   }
+  // Added after launch: brands created earlier get the Google Sheets source too.
+  if (!(await tx.leadSource.findFirst({ where: { brandId, channel: 'GOOGLE_SHEETS' } }))) {
+    await tx.leadSource.create({
+      data: {
+        organizationId,
+        brandId,
+        name: 'Google Sheets',
+        channel: 'GOOGLE_SHEETS',
+        isPaid: false,
+      },
+    });
+    created.push('google_sheets_source');
+  }
   if ((await tx.lossReason.count({ where: { brandId } })) === 0) {
     await tx.lossReason.createMany({
       data: DEFAULT_LOSS_REASONS.map((r, i) => ({
@@ -118,6 +131,7 @@ export const DEFAULT_LEAD_SOURCES = [
   { name: 'Website', channel: 'WEBSITE' as const, isPaid: false },
   { name: 'Google Ads', channel: 'GOOGLE_ADS' as const, isPaid: true },
   { name: 'Meta Ads', channel: 'META_ADS' as const, isPaid: true },
+  { name: 'Google Sheets', channel: 'GOOGLE_SHEETS' as const, isPaid: false },
   { name: 'WhatsApp', channel: 'WHATSAPP' as const, isPaid: false },
   { name: 'Walk-in / Phone call', channel: 'CALL' as const, isPaid: false },
   { name: 'Referral', channel: 'REFERRAL' as const, isPaid: false },

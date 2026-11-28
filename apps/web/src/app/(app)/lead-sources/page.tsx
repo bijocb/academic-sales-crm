@@ -18,6 +18,7 @@ import {
   useLoad,
 } from '@/components/ui';
 import { api } from '@/lib/api';
+import { sheetScript } from '@/lib/sheet-script';
 import { useSession } from '@/lib/session';
 import type { Brand, Campaign, IntakeKeyRow, LeadSource } from '@/lib/types';
 
@@ -41,6 +42,7 @@ export default function LeadSourcesPage() {
           <Sources brandId={brandId} canEdit={can('campaign.manage')} />
           <Campaigns brandId={brandId} canEdit={can('campaign.manage')} />
           {can('integration.manage') && <Keys brandId={brandId} />}
+          {can('integration.manage') && <MetaConnections brandId={brandId} />}
         </div>
       )}
     </>
@@ -234,14 +236,36 @@ function Keys({ brandId }: { brandId: string }) {
   const { busy, error, run } = useAction();
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   return (
-    <Card title="Intake keys (website, landing pages, Google Ads lead forms)">
+    <Card title="Intake keys (website, landing pages, Google Ads lead forms, Google Sheets)">
       {created && (
         <div className="mb-4 space-y-2 rounded-md bg-amber-50 p-3 text-sm ring-1 ring-amber-200">
           <p className="font-medium">Copy this key now — it will not be shown again.</p>
           <code className="block break-all rounded bg-white p-2 ring-1 ring-amber-200">
             {created.key}
           </code>
-          {created.channel === 'GOOGLE_ADS' ? (
+          {created.channel === 'GOOGLE_SHEETS' ? (
+            <div className="space-y-2">
+              <p>
+                In the Google Sheet: <strong>Extensions → Apps Script</strong>, replace the code
+                with the script below, <strong>Save</strong>, then run <strong>setup</strong> once
+                and allow access. New rows are sent every 5 minutes (and at once for a linked Google
+                Form). Row 1 must hold the headers (Name, Phone, Email, Course, …).
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void navigator.clipboard.writeText(sheetScript(origin, created.key))}
+              >
+                Copy Apps Script
+              </Button>
+              <pre
+                aria-label="Google Apps Script"
+                className="max-h-64 overflow-auto rounded bg-white p-2 text-xs ring-1 ring-amber-200"
+              >
+                {sheetScript(origin, created.key)}
+              </pre>
+            </div>
+          ) : created.channel === 'GOOGLE_ADS' ? (
             <p>
               In Google Ads lead form → Webhook: URL{' '}
               <code className="break-all">
@@ -338,6 +362,167 @@ function Keys({ brandId }: { brandId: string }) {
         <Button type="submit" disabled={busy}>
           Create key
         </Button>
+      </form>
+      <div className="mt-2">
+        <ErrorText error={error} />
+      </div>
+    </Card>
+  );
+}
+
+interface MetaConnectionRow {
+  id: string;
+  pageId: string;
+  pageName: string;
+  sourceId: string;
+  status: 'ACTIVE' | 'PAUSED';
+  subscribed: boolean;
+  lastLeadAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+}
+
+/** Facebook / Instagram Lead Ads pages (A-047). The page token is write-only. */
+function MetaConnections({ brandId }: { brandId: string }) {
+  const list = useLoad(
+    () => api<MetaConnectionRow[]>(`/meta-connections?brandId=${brandId}`),
+    [brandId],
+  );
+  const sources = useLoad(() => api<LeadSource[]>(`/lead-sources?brandId=${brandId}`), [brandId]);
+  const metaSources = sources.data?.filter(
+    (s) => s.channel === 'META_ADS' && s.status === 'ACTIVE',
+  );
+  const [f, setF] = useState({ pageId: '', pageName: '', sourceId: '', accessToken: '' });
+  const [newToken, setNewToken] = useState<Record<string, string>>({});
+  const { busy, error, run } = useAction();
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return (
+    <Card title="Facebook & Instagram Lead Ads">
+      <p className="mb-3 text-sm text-slate-600">
+        Leads from Lead Ads forms arrive within seconds through Meta&apos;s webhook. Callback URL
+        for the Meta app: <code className="break-all">{origin}/api/v1/webhooks/meta</code>. Connect
+        each Facebook page with a page access token that has the <code>leads_retrieval</code> and{' '}
+        <code>pages_manage_metadata</code> permissions; the token is stored encrypted and never
+        shown again.
+      </p>
+      <ErrorText error={list.error} />
+      <Table
+        head={['Page', 'Source', 'Status', 'Last lead', 'Last problem', '']}
+        empty={!list.data?.length}
+      >
+        {list.data?.map((c) => (
+          <tr key={c.id}>
+            <Td>
+              <span className="font-medium">{c.pageName}</span>
+              <span className="block font-mono text-xs text-slate-500">{c.pageId}</span>
+            </Td>
+            <Td>{sources.data?.find((s) => s.id === c.sourceId)?.name ?? '—'}</Td>
+            <Td>
+              <Badge tone={c.status === 'ACTIVE' ? 'green' : 'amber'}>{c.status}</Badge>
+            </Td>
+            <Td>{c.lastLeadAt ? new Date(c.lastLeadAt).toLocaleString() : 'None yet'}</Td>
+            <Td className="max-w-64 text-xs text-red-700">{c.lastError ?? '—'}</Td>
+            <Td>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      await api(`/meta-connections/${c.id}`, {
+                        method: 'PATCH',
+                        body: { status: c.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE' },
+                      });
+                      await list.reload();
+                    })
+                  }
+                >
+                  {c.status === 'ACTIVE' ? 'Pause' : 'Resume'}
+                </Button>
+                <Input
+                  aria-label={`New page token for ${c.pageName}`}
+                  className="w-40"
+                  type="password"
+                  placeholder="New token"
+                  value={newToken[c.id] ?? ''}
+                  onChange={(e) => setNewToken({ ...newToken, [c.id]: e.target.value })}
+                />
+                <Button
+                  variant="secondary"
+                  disabled={busy || !newToken[c.id]}
+                  onClick={() =>
+                    void run(async () => {
+                      await api(`/meta-connections/${c.id}`, {
+                        method: 'PATCH',
+                        body: { accessToken: newToken[c.id] },
+                      });
+                      setNewToken({ ...newToken, [c.id]: '' });
+                      await list.reload();
+                    })
+                  }
+                >
+                  Replace token
+                </Button>
+              </div>
+            </Td>
+          </tr>
+        ))}
+      </Table>
+      <form
+        className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void run(async () => {
+            await api('/meta-connections', { method: 'POST', body: { ...f, brandId } });
+            setF({ pageId: '', pageName: '', sourceId: '', accessToken: '' });
+            await list.reload();
+          });
+        }}
+      >
+        <Field label="Facebook page name">
+          <Input
+            required
+            value={f.pageName}
+            onChange={(e) => setF({ ...f, pageName: e.target.value })}
+          />
+        </Field>
+        <Field label="Page ID">
+          <Input
+            required
+            inputMode="numeric"
+            value={f.pageId}
+            onChange={(e) => setF({ ...f, pageId: e.target.value })}
+          />
+        </Field>
+        <Field label="Leads arrive as source">
+          <Select
+            aria-label="Meta source"
+            required
+            value={f.sourceId}
+            onChange={(e) => setF({ ...f, sourceId: e.target.value })}
+          >
+            <option value="">Select…</option>
+            {metaSources?.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Page access token">
+          <Input
+            required
+            type="password"
+            autoComplete="off"
+            value={f.accessToken}
+            onChange={(e) => setF({ ...f, accessToken: e.target.value })}
+          />
+        </Field>
+        <div className="flex items-end">
+          <Button type="submit" disabled={busy}>
+            Connect page
+          </Button>
+        </div>
       </form>
       <div className="mt-2">
         <ErrorText error={error} />

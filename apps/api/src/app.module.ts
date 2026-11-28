@@ -73,6 +73,10 @@ import { FinanceController } from './finance/finance.controller';
 import { FinanceService } from './finance/finance.service';
 import { buildGatewayRegistry, GatewayRegistry } from './finance/gateway';
 import { AiController } from './ai/ai.controller';
+import { SecretBox } from './common/secret-box';
+import { buildMetaClient, MetaClient } from './leads/meta';
+import { MetaController } from './leads/meta.controller';
+import { MetaService, SECRET_BOX } from './leads/meta.service';
 import { StatusService } from './jobs/status.service';
 import { AiService } from './ai/ai.service';
 import { ReportsController } from './reports/reports.controller';
@@ -151,6 +155,7 @@ export class AppModule implements NestModule {
         FinanceController,
         ReportsController,
         AiController,
+        MetaController,
         InternalController,
       ],
       providers: [
@@ -193,6 +198,24 @@ export class AppModule implements NestModule {
         ReportsService,
         TargetsService,
         AiService,
+        MetaService,
+        {
+          provide: MetaClient,
+          useFactory: (c: AppConfig) =>
+            buildMetaClient(c.NODE_ENV, c.META_GRAPH_VERSION, c.META_APP_SECRET),
+          inject: [APP_CONFIG],
+        },
+        {
+          provide: SECRET_BOX,
+          // Development/test fall back to a fixed, labelled key; production needs SECRETS_KEY.
+          useFactory: (c: AppConfig) =>
+            c.SECRETS_KEY
+              ? new SecretBox(c.SECRETS_KEY)
+              : c.NODE_ENV === 'production'
+                ? null
+                : new SecretBox('00'.repeat(16) + 'de'.repeat(16)),
+          inject: [APP_CONFIG],
+        },
         {
           provide: GatewayRegistry,
           useFactory: (c: AppConfig) => buildGatewayRegistry(c.NODE_ENV, c.SANDBOX_GATEWAY_SECRET),

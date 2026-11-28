@@ -12,3 +12,4 @@ export * from './finance';
 export * from './reports';
 export { z } from 'zod';
 export * from './ai';
+export * from './meta';

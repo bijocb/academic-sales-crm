@@ -428,7 +428,10 @@ export class IntakeService {
       const campaign = await tx.campaign.findFirst({
         where: {
           brandId: brand.id,
-          ...(input.campaignId ? { id: input.campaignId } : { utmCampaign: input.utm_campaign }),
+          // UTM name, or the ad platform's own campaign id (Meta / Google) stored as the external id.
+          ...(input.campaignId
+            ? { id: input.campaignId }
+            : { OR: [{ utmCampaign: input.utm_campaign }, { externalId: input.utm_campaign }] }),
         },
       });
       if (campaign) campaignId = campaign.id;
