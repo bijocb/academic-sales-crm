@@ -195,3 +195,23 @@ Confirmation has no endpoint in this phase: per D-006 it is triggered by the fir
 | `GET/PUT /finance-settings?brandId`                          | read: brand visible; write: `settings.manage`         |                                                                                                                  |
 | `POST /webhooks/payments/:provider`                          | gateway signature over the raw body                   | 401 `INVALID_SIGNATURE`; duplicates ignored                                                                      |
 | `GET /sandbox/checkout/:orderId`, `POST …/complete`          | none — **development/test only**, 404 in production   | sandbox hosted page that sends a signed webhook                                                                  |
+
+## Phase 13 — reports, targets and incentives
+
+Report filters (all reports): `from`, `to` (YYYY-MM-DD, brand or organization time zone), `brandId?`, `teamId?`,
+`userId?`, `courseId?`, `sourceId?`, `campaignId?`, `mine=true|false`. Every response repeats the period, time zone and
+date basis. Definitions: `docs/KPI.md`.
+
+| Method & path                                           | Permission                                                         | Notes                                                                                                                                         |
+| ------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /reports/summary`                                  | `report.read` (scope of the grant); otherwise own numbers only     | metrics, funnel, revenue and outstanding per currency; 404 for a brand / person outside scope                                                 |
+| `GET /reports/breakdown?by=`                            | as summary                                                         | `executive\|course\|source\|campaign\|brand`; campaign and source rows add spend, CPL and CPA                                                 |
+| `GET /reports/drilldown?metric=`                        | as summary                                                         | the records behind a number (`leadsCreated`, `assigned`, `contacted`, `lost`, `recovered`, `admissionsConfirmed`, `payments`, `overdueTasks`) |
+| `GET /reports/export?report=`                           | `report.export` + as summary                                       | CSV of `summary`, `breakdown` (`by`) or `drilldown` (`metric`); audited `report.exported`                                                     |
+| `GET /targets?periodStart&periodEnd&brandId`            | own targets; others with `report.read` / `target.manage`           | each with `achieved` (same KPI records)                                                                                                       |
+| `POST /targets`, `PATCH /targets/:id`                   | `target.manage` over the brand (organization targets: org-wide)    | `{ scope, brandId?, teamId?, userId?, courseId?, metric, periodStart, periodEnd, value, currency? }`; PATCH `{ value }`; audited              |
+| `GET /ad-spend?brandId`, `POST /ad-spend`               | read: `campaign.manage` or `report.read`; write: `campaign.manage` | `{ campaignId, month: YYYY-MM, amountMinor }` — one row per campaign and month (upsert), brand currency                                       |
+| `GET /incentive-rules?brandId`, `POST /incentive-rules` | read: `report.read` or `target.manage`; write: `target.manage`     | same name → next version (append-only)                                                                                                        |
+| `GET /incentive-runs?brandId`, `POST /incentive-runs`   | as rules                                                           | `{ ruleId, periodStart, periodEnd }` → DRAFT preview with lines and inputs; 400 `RULE_NOT_EFFECTIVE`                                          |
+| `GET /incentive-runs/:id`                               | as rules (404 otherwise)                                           | run with lines (EARNED / CLAWBACK)                                                                                                            |
+| `POST /incentive-runs/:id/approve`                      | `target.manage`, not the creator                                   | locks the run; 409 `RUN_APPROVED`                                                                                                             |

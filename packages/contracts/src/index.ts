@@ -9,4 +9,5 @@ export * from './pipeline';
 export * from './recovery';
 export * from './admissions';
 export * from './finance';
+export * from './reports';
 export { z } from 'zod';

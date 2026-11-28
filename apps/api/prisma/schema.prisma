@@ -1951,3 +1951,132 @@ model RefundEvent {
   @@index([organizationId, refundId, occurredAt])
   @@map("refund_events")
 }
+
+// ---------------------------------------------------------------- Phase 13
+
+enum TargetMetric {
+  ASSIGNED
+  CONTACTED
+  COUNSELLING
+  ADMISSIONS
+  REVENUE
+  COLLECTIONS
+}
+
+enum TargetScope {
+  ORGANIZATION
+  BRAND
+  TEAM
+  USER
+}
+
+enum IncentiveBasis {
+  PER_ADMISSION
+  PERCENT_OF_COLLECTIONS
+}
+
+enum IncentiveRunStatus {
+  DRAFT
+  APPROVED
+}
+
+model Target {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  scope          TargetScope
+  brandId        String?      @map("brand_id") @db.Uuid
+  teamId         String?      @map("team_id") @db.Uuid
+  userId         String?      @map("user_id") @db.Uuid
+  courseId       String?      @map("course_id") @db.Uuid
+  metric         TargetMetric
+  periodStart    DateTime     @map("period_start") @db.Date
+  periodEnd      DateTime     @map("period_end") @db.Date
+  value          BigInt
+  currency       Currency?
+  createdById    String?      @map("created_by_id") @db.Uuid
+  createdAt      DateTime     @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([organizationId, periodStart, periodEnd])
+  @@map("targets")
+}
+
+/// Manually entered marketing spend per campaign and month (O-10: no ad-platform sync yet).
+model AdSpend {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  brandId        String   @map("brand_id") @db.Uuid
+  campaignId     String   @map("campaign_id") @db.Uuid
+  month          DateTime @db.Date
+  amountMinor    BigInt   @map("amount_minor")
+  currency       Currency
+  createdById    String?  @map("created_by_id") @db.Uuid
+  createdAt      DateTime @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([campaignId, month])
+  @@map("ad_spend")
+}
+
+/// Versioned incentive rules: a new version is a new row; old versions stay for approved runs.
+model IncentiveRule {
+  id                   String         @id @default(uuid()) @db.Uuid
+  organizationId       String         @map("organization_id") @db.Uuid
+  brandId              String         @map("brand_id") @db.Uuid
+  name                 String
+  version              Int
+  basis                IncentiveBasis
+  amountMinor          BigInt?        @map("amount_minor")
+  percentBp            Int?           @map("percent_bp")
+  currency             Currency
+  thresholdCount       Int            @default(0) @map("threshold_count")
+  capMinor             BigInt?        @map("cap_minor")
+  excludedCourseIds    String[]       @default([]) @map("excluded_course_ids") @db.Uuid
+  firstContactSharePct Int            @default(50) @map("first_contact_share_pct")
+  effectiveFrom        DateTime       @map("effective_from") @db.Date
+  effectiveTo          DateTime?      @map("effective_to") @db.Date
+  active               Boolean        @default(true)
+  createdById          String?        @map("created_by_id") @db.Uuid
+  createdAt            DateTime       @map("created_at") @db.Timestamptz(3)
+
+  @@unique([brandId, name, version])
+  @@unique([organizationId, id])
+  @@map("incentive_rules")
+}
+
+model IncentiveRun {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  brandId        String             @map("brand_id") @db.Uuid
+  ruleId         String             @map("rule_id") @db.Uuid
+  periodStart    DateTime           @map("period_start") @db.Date
+  periodEnd      DateTime           @map("period_end") @db.Date
+  status         IncentiveRunStatus @default(DRAFT)
+  totalMinor     BigInt             @map("total_minor")
+  currency       Currency
+  createdById    String?            @map("created_by_id") @db.Uuid
+  createdAt      DateTime           @map("created_at") @db.Timestamptz(3)
+  approvedById   String?            @map("approved_by_id") @db.Uuid
+  approvedAt     DateTime?          @map("approved_at") @db.Timestamptz(3)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, brandId, periodStart])
+  @@map("incentive_runs")
+}
+
+/// Append-only calculation lines with their inputs (FR-016: never silently recalculated).
+model IncentiveLine {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  runId          String   @map("run_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  kind           String
+  amountMinor    BigInt   @map("amount_minor")
+  currency       Currency
+  inputs         Json
+  createdAt      DateTime @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, runId])
+  @@index([organizationId, userId])
+  @@map("incentive_lines")
+}

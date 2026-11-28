@@ -103,6 +103,15 @@ Changes from SRS Appendix A: the three separate worker apps become one worker en
 - The first verified payment confirms the admission (D-006) in a separate transaction, so a blocked confirmation never
   loses the payment. Refunds are an immutable request plus append-only decisions; a full refund cancels the admission.
 
+## 5d. Reports (Phase 13)
+
+- `ReportsService.collect()` turns the history tables into record sets that all carry the same dimensions (lead, brand,
+  course, first-touch source and campaign, attributed user). Summary, breakdowns, drill-downs, target progress and
+  incentive runs are all computed from those sets, so their numbers reconcile by construction. No report tables or
+  copied totals exist; if reports ever become slow, materialised snapshots can be added behind the same functions.
+- Scope is applied to the records (brand and attributed user), from the caller's `report.read` grant; executives without it
+  see only their own records.
+
 ## 6. Allocation
 
 Filter → rank → pick → record:

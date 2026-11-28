@@ -71,6 +71,9 @@ import { buildLmsRegistry, LmsRegistry } from './admissions/lms';
 import { FinanceController } from './finance/finance.controller';
 import { FinanceService } from './finance/finance.service';
 import { buildGatewayRegistry, GatewayRegistry } from './finance/gateway';
+import { ReportsController } from './reports/reports.controller';
+import { ReportsService } from './reports/reports.service';
+import { TargetsService } from './reports/targets.service';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -127,6 +130,7 @@ export class AppModule implements NestModule {
         RecoveryController,
         AdmissionsController,
         FinanceController,
+        ReportsController,
         InternalController,
       ],
       providers: [
@@ -165,6 +169,8 @@ export class AppModule implements NestModule {
         AdmissionsService,
         AdmissionConfigService,
         FinanceService,
+        ReportsService,
+        TargetsService,
         {
           provide: GatewayRegistry,
           useFactory: (c: AppConfig) => buildGatewayRegistry(c.NODE_ENV, c.SANDBOX_GATEWAY_SECRET),

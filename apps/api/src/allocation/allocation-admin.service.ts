@@ -300,7 +300,7 @@ export class AllocationAdminService {
     return this.db.tenant(p.organizationId, async (tx) => {
       const rows = await tx.leadAssignment.findMany({
         where: { leadId },
-        orderBy: { assignedAt: 'desc' },
+        orderBy: [{ assignedAt: 'desc' }, { attemptNo: 'desc' }],
       });
       const ids = [
         ...new Set(

@@ -52,6 +52,13 @@ const NAV: NavItem[] = [
     label: 'SLA monitor',
     show: (s) => s.can('task.manage') || s.can('allocation.manage'),
   },
+  { href: '/reports', label: 'Reports', show: (s) => s.can('report.read') },
+  {
+    href: '/targets',
+    label: 'Targets & ad spend',
+    show: (s) => s.can('target.manage') || s.can('campaign.manage'),
+  },
+  { href: '/incentives', label: 'Incentives', show: (s) => s.can('target.manage') },
   { href: '/leads/import', label: 'Import leads', show: (s) => s.can('lead.import') },
   { href: '/leads/exceptions', label: 'Rejected leads', show: (s) => s.can('lead.import') },
   { href: '/leads/duplicates', label: 'Possible duplicates', show: (s) => s.can('lead.merge') },

@@ -297,6 +297,7 @@ export class IntakeService {
           previousLeadId: previous?.id ?? null,
           firstEnquiryAt: receivedAt,
           lastEnquiryAt: receivedAt,
+          createdAt: now,
         },
       });
       // Phase 10: a lost lead waiting for recovery is superseded by the fresh enquiry.

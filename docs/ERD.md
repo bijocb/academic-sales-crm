@@ -182,3 +182,13 @@ erDiagram
 | `payment_events`           | **Append-only** webhooks as received; unique (provider, event id); invalid signatures stored under random ids |
 | `payments`                 | **Append-only** verified money: amount, method, reference, receipt number (unique), verification source       |
 | `refunds`, `refund_events` | **Append-only** request + APPROVED / REJECTED / PAID decisions                                                |
+
+## Phase 13 additions
+
+| Table             | Notes                                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `targets`         | Scope ORGANIZATION / BRAND / TEAM / USER, optional course, metric, period, value (count or minor units + currency); audited       |
+| `ad_spend`        | Manual spend per campaign and month (unique), brand currency                                                                      |
+| `incentive_rules` | **Append-only** versioned rules (unique brand + name + version): basis, amount or basis points, threshold, cap, exclusions, split |
+| `incentive_runs`  | Per brand, rule version and period: DRAFT → APPROVED (approver ≠ creator); a trigger refuses any change once approved             |
+| `incentive_lines` | **Append-only** EARNED / CLAWBACK lines per person with their inputs (admission / payment ids, rule version)                      |
